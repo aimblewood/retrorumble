@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Retro Rumble!</title>
     <style>
         * {
@@ -134,12 +137,6 @@
         </div>
         
         <div id="loadingMessage">Loading game assets...</div>
-        
-        <div id="controls">
-            <p><strong>CONTROLS</strong><br>
-            Arrow Keys or WASD: Move<br>
-            Hold Space: Run</p>
-        </div>
     </div>
 
     <script>
@@ -173,6 +170,8 @@
         };
         let keys = {};
         let touches = {};
+        let lastTapTime = 0;
+        let doubleTapDelay = 300; // milliseconds for double-tap detection
         
         // Final ring boundaries (your perfect coordinates)
         const RING_BOUNDS = {
@@ -248,7 +247,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.5 : AI_SPEED * 2.0;
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 1.5 : AI_SPEED * 1.5;
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
@@ -310,8 +309,8 @@
                 this.vy = 0;
                 let moving = false;
                 
-                // Check if running (spacebar held)
-                this.isRunning = keys[' '] || false;
+                // Check if running (spacebar held or touch running)
+                this.isRunning = keys[' '] || touches.running || false;
                 const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
                 
                 // Keyboard input
@@ -552,9 +551,6 @@
             // Load assets
             await loadGameAssets();
             
-            // Show controls
-            document.getElementById('controls').style.display = 'block';
-            
             // Initialize game objects
             const centerX = (RING_BOUNDS.topLeft + RING_BOUNDS.topRight) / 2;
             const centerY = (RING_BOUNDS.top + RING_BOUNDS.bottom) / 2;
@@ -647,6 +643,19 @@
         canvas.addEventListener('touchstart', (e) => {
             if (gameRunning) {
                 const coords = getCanvasCoordinates(e);
+                const currentTime = Date.now();
+                
+                // Check for double-tap
+                if (currentTime - lastTapTime < doubleTapDelay) {
+                    // Double tap detected - enable running
+                    touches.running = true;
+                    // Clear the running state after a short time
+                    setTimeout(() => {
+                        touches.running = false;
+                    }, 2000); // Run for 2 seconds after double-tap
+                }
+                lastTapTime = currentTime;
+                
                 touches.active = true;
                 touches.x = coords.x;
                 touches.y = coords.y;
@@ -665,6 +674,7 @@
         
         canvas.addEventListener('touchend', (e) => {
             touches.active = false;
+            // Don't immediately clear running on touch end, let the timeout handle it
         });
         
         // Prevent zooming on mobile
