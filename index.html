@@ -168,6 +168,8 @@
             opponent: null,
             opponentRun: null
         };
+        let gameMusic = null;
+        let musicPlaying = false;
         let keys = {};
         let touches = {};
         let lastTapTime = 0;
@@ -247,7 +249,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.5 : AI_SPEED * 1.5;
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 1.5 : AI_SPEED * 1.5;
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
