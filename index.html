@@ -1,4 +1,24 @@
-<!DOCTYPE html>
+        #muteButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid white;
+            border-radius: 10px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: none;
+            z-index: 100;
+            text-align: center;
+            line-height: 46px;
+        }
+        
+        #muteButton:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -131,6 +151,8 @@
     <div id="gameWrapper">
         <canvas id="gameCanvas"></canvas>
         
+        <button id="muteButton">🔊</button>
+        
         <div id="splashScreen">
             <img id="splashImage" src="splash.png" alt="Retro Rumble">
             <button id="startButton">CLICK TO START</button>
@@ -228,7 +250,7 @@
             walkLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 }, // Row 2
             walkRight: { row: 3, frames: 3, speed: 6, startFrame: 0 }, // Row 4
             walkUp: { row: 0, frames: 3, speed: 6, startFrame: 0 }, // Row 1
-            runDown: { row: 2, frames: 3, speed: 3, startFrame: 0 }, // 50% faster (was 4, now 3)
+            runDown: { row: 2, frames: 3, speed: 3, startFrame: 0 }, // Use walk animation at 2x speed
             runLeft: { row: 1, frames: 3, speed: 3, startFrame: 0 },
             runRight: { row: 3, frames: 3, speed: 3, startFrame: 0 },
             runUp: { row: 0, frames: 3, speed: 3, startFrame: 0 }
@@ -427,15 +449,8 @@
                 
                 const anim = ANIMATIONS[this.currentAnimation];
                 
-                // Choose sprite sheet based on running state
-                // Only use run sprite sheet if it exists and we're actually running
-                const useRunSprite = this.isRunning && this.runSpriteSheet && this.currentAnimation.includes('run');
-                const currentSpriteSheet = useRunSprite ? this.runSpriteSheet : this.spriteSheet;
-                
-                // Make sure we have a valid sprite sheet
-                if (!currentSpriteSheet) {
-                    currentSpriteSheet = this.spriteSheet; // Fallback to walk sprites
-                }
+                // Always use walk sprite sheet (don't use separate run sprites)
+                const currentSpriteSheet = this.spriteSheet;
                 
                 const frameWidth = currentSpriteSheet.width / 9;
                 const frameHeight = currentSpriteSheet.height / 4;
@@ -567,6 +582,9 @@
             // Hide splash screen
             document.getElementById('splashScreen').style.display = 'none';
             
+            // Show mute button
+            document.getElementById('muteButton').style.display = 'block';
+            
             // Load assets
             await loadGameAssets();
             
@@ -629,12 +647,6 @@
             ctx.fillStyle = '#00ff00';
             ctx.fillRect(20, 60, 300, 20);
             ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
-            
-            // Draw music toggle indicator
-            ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Press M to toggle music', GAME_WIDTH / 2, 30);
             
             requestAnimationFrame(gameLoop);
         }
@@ -739,6 +751,24 @@
         canvas.addEventListener('touchend', (e) => {
             touches.active = false;
             // Don't immediately clear running on touch end, let the timeout handle it
+        });
+        
+        // Mute button handler
+        document.getElementById('muteButton').addEventListener('click', () => {
+            if (gameMusic) {
+                if (musicPlaying) {
+                    gameMusic.pause();
+                    musicPlaying = false;
+                    document.getElementById('muteButton').textContent = '🔇';
+                } else {
+                    gameMusic.play().then(() => {
+                        musicPlaying = true;
+                        document.getElementById('muteButton').textContent = '🔊';
+                    }).catch(err => {
+                        console.error('Could not play music:', err);
+                    });
+                }
+            }
         });
         
         // Prevent zooming on mobile
