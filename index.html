@@ -137,7 +137,8 @@
         
         <div id="controls">
             <p><strong>CONTROLS</strong><br>
-            Arrow Keys or WASD: Move</p>
+            Arrow Keys or WASD: Move<br>
+            Hold Space: Run</p>
         </div>
     </div>
 
@@ -166,7 +167,9 @@
         let images = {
             ring: null,
             player: null,
-            opponent: null
+            playerRun: null,
+            opponent: null,
+            opponentRun: null
         };
         let keys = {};
         let touches = {};
@@ -217,29 +220,38 @@
         
         // Sprite animation configuration
         const ANIMATIONS = {
-            idle: { row: 2, frames: 1, speed: 10, startFrame: 0 }, // Row 3, first sprite (facing camera)
-            walkDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Changed to row 3
+            idle: { row: 2, frames: 1, speed: 10, startFrame: 0 }, // Default idle (facing camera)
+            idleLeft: { row: 1, frames: 1, speed: 10, startFrame: 0 }, // Row 2, first frame
+            idleRight: { row: 3, frames: 1, speed: 10, startFrame: 0 }, // Row 4, first frame
+            walkDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Row 3
             walkLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 }, // Row 2
             walkRight: { row: 3, frames: 3, speed: 6, startFrame: 0 }, // Row 4
-            walkUp: { row: 0, frames: 3, speed: 6, startFrame: 0 } // Changed to row 1
+            walkUp: { row: 0, frames: 3, speed: 6, startFrame: 0 }, // Row 1
+            runDown: { row: 2, frames: 3, speed: 3, startFrame: 0 }, // 50% faster (was 4, now 3)
+            runLeft: { row: 1, frames: 3, speed: 3, startFrame: 0 },
+            runRight: { row: 3, frames: 3, speed: 3, startFrame: 0 },
+            runUp: { row: 0, frames: 3, speed: 3, startFrame: 0 }
         };
         
         // Wrestler class
         class Wrestler {
-            constructor(x, y, spriteSheet, isPlayer = true) {
+            constructor(x, y, spriteSheet, runSpriteSheet, isPlayer = true) {
                 this.x = x;
                 this.y = y;
                 this.width = SPRITE_SIZE;
                 this.height = SPRITE_SIZE;
                 this.spriteSheet = spriteSheet;
+                this.runSpriteSheet = runSpriteSheet;
                 this.isPlayer = isPlayer;
                 this.currentAnimation = 'idle';
                 this.frameIndex = 0;
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.5 : AI_SPEED * 2.0;
                 this.vx = 0;
                 this.vy = 0;
+                this.isRunning = false;
             }
             
             update() {
@@ -298,27 +310,32 @@
                 this.vy = 0;
                 let moving = false;
                 
+                // Check if running (spacebar held)
+                this.isRunning = keys[' '] || false;
+                const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
+                
+                // Keyboard input
                 if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-                    this.vy = -this.speed;
-                    this.currentAnimation = 'walkUp';
+                    this.vy = -currentSpeed;
+                    this.currentAnimation = this.isRunning ? 'runUp' : 'walkUp';
                     this.facing = 'up';
                     moving = true;
                 }
                 if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-                    this.vy = this.speed;
-                    this.currentAnimation = 'walkDown';
+                    this.vy = currentSpeed;
+                    this.currentAnimation = this.isRunning ? 'runDown' : 'walkDown';
                     this.facing = 'down';
                     moving = true;
                 }
                 if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-                    this.vx = -this.speed;
-                    this.currentAnimation = 'walkLeft';
+                    this.vx = -currentSpeed;
+                    this.currentAnimation = this.isRunning ? 'runLeft' : 'walkLeft';
                     this.facing = 'left';
                     moving = true;
                 }
                 if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-                    this.vx = this.speed;
-                    this.currentAnimation = 'walkRight';
+                    this.vx = currentSpeed;
+                    this.currentAnimation = this.isRunning ? 'runRight' : 'walkRight';
                     this.facing = 'right';
                     moving = true;
                 }
@@ -329,14 +346,18 @@
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance > 20) {
-                        this.vx = (dx / distance) * this.speed;
-                        this.vy = (dy / distance) * this.speed;
+                        this.vx = (dx / distance) * currentSpeed;
+                        this.vy = (dy / distance) * currentSpeed;
                         
                         if (Math.abs(dx) > Math.abs(dy)) {
-                            this.currentAnimation = dx > 0 ? 'walkRight' : 'walkLeft';
+                            this.currentAnimation = dx > 0 ? 
+                                (this.isRunning ? 'runRight' : 'walkRight') : 
+                                (this.isRunning ? 'runLeft' : 'walkLeft');
                             this.facing = dx > 0 ? 'right' : 'left';
                         } else {
-                            this.currentAnimation = dy > 0 ? 'walkDown' : 'walkUp';
+                            this.currentAnimation = dy > 0 ? 
+                                (this.isRunning ? 'runDown' : 'walkDown') : 
+                                (this.isRunning ? 'runUp' : 'walkUp');
                             this.facing = dy > 0 ? 'down' : 'up';
                         }
                         moving = true;
@@ -349,7 +370,15 @@
                 }
                 
                 if (!moving) {
-                    this.currentAnimation = 'idle';
+                    // Set idle animation based on last facing direction
+                    if (this.facing === 'left') {
+                        this.currentAnimation = 'idleLeft';
+                    } else if (this.facing === 'right') {
+                        this.currentAnimation = 'idleRight';
+                    } else {
+                        // For up/down, use the last horizontal direction or default
+                        this.currentAnimation = 'idle';
+                    }
                     this.frameIndex = 0;
                 }
             }
@@ -396,13 +425,24 @@
                 if (!this.spriteSheet) return;
                 
                 const anim = ANIMATIONS[this.currentAnimation];
-                const frameWidth = this.spriteSheet.width / 9;
-                const frameHeight = this.spriteSheet.height / 4;
                 
-                // For idle, use first frame of row 3; for others, animate through frames
+                // Choose sprite sheet based on running state
+                // Only use run sprite sheet if it exists and we're actually running
+                const useRunSprite = this.isRunning && this.runSpriteSheet && this.currentAnimation.includes('run');
+                const currentSpriteSheet = useRunSprite ? this.runSpriteSheet : this.spriteSheet;
+                
+                // Make sure we have a valid sprite sheet
+                if (!currentSpriteSheet) {
+                    currentSpriteSheet = this.spriteSheet; // Fallback to walk sprites
+                }
+                
+                const frameWidth = currentSpriteSheet.width / 9;
+                const frameHeight = currentSpriteSheet.height / 4;
+                
+                // For idle animations, always use first frame (sprite 0) of the row
                 let sourceX;
-                if (this.currentAnimation === 'idle') {
-                    sourceX = 0; // First sprite in the row (facing camera)
+                if (this.currentAnimation.includes('idle')) {
+                    sourceX = 0; // First sprite in the row
                 } else {
                     sourceX = this.frameIndex * frameWidth;
                 }
@@ -410,7 +450,7 @@
                 const sourceY = anim.row * frameHeight;
                 
                 ctx.drawImage(
-                    this.spriteSheet,
+                    currentSpriteSheet,
                     sourceX, sourceY,
                     frameWidth, frameHeight,
                     Math.floor(this.x), Math.floor(this.y),
@@ -428,7 +468,7 @@
             
             return new Promise((resolve) => {
                 let loadedCount = 0;
-                const totalAssets = 3;
+                const totalAssets = 5; // Updated to include run sprites
                 
                 const checkAllLoaded = () => {
                     loadedCount++;
@@ -462,6 +502,20 @@
                     checkAllLoaded();
                 };
                 
+                // Load player run sprite
+                const playerRunImg = new Image();
+                playerRunImg.src = 'player_run_spritesheet.png';
+                playerRunImg.onload = () => {
+                    images.playerRun = playerRunImg;
+                    console.log('Player run sprite loaded successfully');
+                    checkAllLoaded();
+                };
+                playerRunImg.onerror = () => {
+                    console.log('Could not load player_run_spritesheet.png - using walk sprites for running');
+                    images.playerRun = null; // Set to null instead of fallback
+                    checkAllLoaded();
+                };
+                
                 // Load opponent sprite
                 const opponentImg = new Image();
                 opponentImg.src = 'opponent_spritesheet.png';
@@ -471,6 +525,20 @@
                 };
                 opponentImg.onerror = () => {
                     console.error('Failed to load opponent_spritesheet.png');
+                    checkAllLoaded();
+                };
+                
+                // Load opponent run sprite
+                const opponentRunImg = new Image();
+                opponentRunImg.src = 'opponent_run_spritesheet.png';
+                opponentRunImg.onload = () => {
+                    images.opponentRun = opponentRunImg;
+                    console.log('Opponent run sprite loaded successfully');
+                    checkAllLoaded();
+                };
+                opponentRunImg.onerror = () => {
+                    console.log('Could not load opponent_run_spritesheet.png - using walk sprites for running');
+                    images.opponentRun = null; // Set to null instead of fallback
                     checkAllLoaded();
                 };
             });
@@ -491,8 +559,8 @@
             const centerX = (RING_BOUNDS.topLeft + RING_BOUNDS.topRight) / 2;
             const centerY = (RING_BOUNDS.top + RING_BOUNDS.bottom) / 2;
             
-            player = new Wrestler(centerX - 100, centerY, images.player, true);
-            opponent = new Wrestler(centerX + 100, centerY, images.opponent, false);
+            player = new Wrestler(centerX - 100, centerY, images.player, images.playerRun, true);
+            opponent = new Wrestler(centerX + 100, centerY, images.opponent, images.opponentRun, false);
             
             gameRunning = true;
             gameLoop();
