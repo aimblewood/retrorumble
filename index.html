@@ -469,7 +469,7 @@
             
             return new Promise((resolve) => {
                 let loadedCount = 0;
-                const totalAssets = 5; // Updated to include run sprites
+                const totalAssets = 6; // Include music in asset count
                 
                 const checkAllLoaded = () => {
                     loadedCount++;
@@ -478,6 +478,23 @@
                         resolve();
                     }
                 };
+                
+                // Load music
+                gameMusic = new Audio('game_music.mp3');
+                gameMusic.loop = true;
+                gameMusic.volume = 0.5;
+                gameMusic.addEventListener('canplaythrough', () => {
+                    console.log('Music loaded successfully');
+                    checkAllLoaded();
+                }, { once: true });
+                gameMusic.addEventListener('error', () => {
+                    console.error('Failed to load game_music.mp3');
+                    gameMusic = null;
+                    checkAllLoaded();
+                });
+                
+                // Try to load the music
+                gameMusic.load();
                 
                 // Load ring
                 const ringImg = new Image();
@@ -513,7 +530,7 @@
                 };
                 playerRunImg.onerror = () => {
                     console.log('Could not load player_run_spritesheet.png - using walk sprites for running');
-                    images.playerRun = null; // Set to null instead of fallback
+                    images.playerRun = null;
                     checkAllLoaded();
                 };
                 
@@ -539,7 +556,7 @@
                 };
                 opponentRunImg.onerror = () => {
                     console.log('Could not load opponent_run_spritesheet.png - using walk sprites for running');
-                    images.opponentRun = null; // Set to null instead of fallback
+                    images.opponentRun = null;
                     checkAllLoaded();
                 };
             });
@@ -552,6 +569,19 @@
             
             // Load assets
             await loadGameAssets();
+            
+            // Try to start music
+            if (gameMusic) {
+                try {
+                    await gameMusic.play();
+                    musicPlaying = true;
+                    console.log('Music started');
+                } catch (err) {
+                    console.log('Music autoplay prevented:', err);
+                    // Set up to play on first interaction
+                    musicPlaying = false;
+                }
+            }
             
             // Initialize game objects
             const centerX = (RING_BOUNDS.topLeft + RING_BOUNDS.topRight) / 2;
@@ -600,6 +630,12 @@
             ctx.fillRect(20, 60, 300, 20);
             ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
             
+            // Draw music toggle indicator
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Press M to toggle music', GAME_WIDTH / 2, 30);
+            
             requestAnimationFrame(gameLoop);
         }
         
@@ -620,6 +656,32 @@
         // Input handling
         window.addEventListener('keydown', (e) => {
             keys[e.key] = true;
+            
+            // Toggle music with M key
+            if ((e.key === 'm' || e.key === 'M') && gameRunning) {
+                if (gameMusic) {
+                    if (musicPlaying) {
+                        gameMusic.pause();
+                        musicPlaying = false;
+                        console.log('Music paused');
+                    } else {
+                        gameMusic.play().then(() => {
+                            musicPlaying = true;
+                            console.log('Music resumed');
+                        }).catch(err => {
+                            console.error('Could not play music:', err);
+                        });
+                    }
+                }
+            }
+            
+            // Try to start music on first interaction if it hasn't started
+            if (gameMusic && !musicPlaying && gameRunning) {
+                gameMusic.play().then(() => {
+                    musicPlaying = true;
+                    console.log('Music started on key press');
+                }).catch(() => {});
+            }
             
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
                 e.preventDefault();
