@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retro Rumble!</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #gameWrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+        
+        #gameCanvas {
+            display: block;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+        }
+        
+        #splashScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            cursor: pointer;
+        }
+        
+        #splashImage {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+        
+        #startButton {
+            position: absolute;
+            bottom: 12%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 400px;
+            height: 90px;
+            background: #00ff00;
+            border: 4px solid #00cc00;
+            border-radius: 10px;
+            cursor: pointer;
+            color: #000000;
+            font-size: 36px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            line-height: 90px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        #startButton:hover {
+            background: #00ff33;
+            border-color: #00ff00;
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        #startButton:active {
+            transform: translateX(-50%) translateY(0);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            display: none;
+        }
+        
+        #loadingMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameWrapper">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="splashScreen">
+            <img id="splashImage" src="splash.png" alt="Retro Rumble">
+            <button id="startButton">CLICK TO START</button>
+        </div>
+        
+        <div id="loadingMessage">Loading game assets...</div>
+        
+        <div id="controls">
+            <p><strong>CONTROLS</strong><br>
+            Arrow Keys or WASD: Move</p>
+        </div>
+    </div>
+
+    <script>
+        // Game configuration
+        const BASE_WIDTH = 1920;
+        const BASE_HEIGHT = 1080;
+        const SPRITE_SIZE = 32;
+        const MOVEMENT_SPEED = 6;
+        const AI_FOLLOW_DISTANCE = 240;
+        const AI_SPEED = 4;
+        
+        // Dynamic scaling
+        let GAME_WIDTH = BASE_WIDTH;
+        let GAME_HEIGHT = BASE_HEIGHT;
+        let SCALE = 3;
+        let actualScale = 1;
+        
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        
+        // Game state
+        let gameRunning = false;
+        let images = {
+            ring: null,
+            player: null,
+            opponent: null
+        };
+        let keys = {};
+        let touches = {};
+        
+        // Final ring boundaries (your perfect coordinates)
+        const RING_BOUNDS = {
+            topLeft: 415,
+            topRight: 1491,
+            top: 445,
+            bottomLeft: 329,
+            bottomRight: 1583,
+            bottom: 760
+        };
+        
+        // Setup responsive canvas
+        function setupCanvas() {
+            const displayWidth = window.innerWidth;
+            const displayHeight = window.innerHeight;
+            
+            const gameAspectRatio = BASE_WIDTH / BASE_HEIGHT;
+            const windowAspectRatio = displayWidth / displayHeight;
+            
+            let renderWidth, renderHeight;
+            
+            if (windowAspectRatio > gameAspectRatio) {
+                renderHeight = displayHeight;
+                renderWidth = displayHeight * gameAspectRatio;
+            } else {
+                renderWidth = displayWidth;
+                renderHeight = displayWidth / gameAspectRatio;
+            }
+            
+            GAME_WIDTH = BASE_WIDTH;
+            GAME_HEIGHT = BASE_HEIGHT;
+            
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            
+            canvas.style.width = renderWidth + 'px';
+            canvas.style.height = renderHeight + 'px';
+            
+            actualScale = renderWidth / GAME_WIDTH;
+            SCALE = Math.max(2, Math.floor(3 * (GAME_WIDTH / BASE_WIDTH)));
+        }
+        
+        window.addEventListener('resize', setupCanvas);
+        setupCanvas();
+        
+        // Sprite animation configuration
+        const ANIMATIONS = {
+            idle: { row: 2, frames: 1, speed: 10, startFrame: 0 }, // Row 3, first sprite (facing camera)
+            walkDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Changed to row 3
+            walkLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 }, // Row 2
+            walkRight: { row: 3, frames: 3, speed: 6, startFrame: 0 }, // Row 4
+            walkUp: { row: 0, frames: 3, speed: 6, startFrame: 0 } // Changed to row 1
+        };
+        
+        // Wrestler class
+        class Wrestler {
+            constructor(x, y, spriteSheet, isPlayer = true) {
+                this.x = x;
+                this.y = y;
+                this.width = SPRITE_SIZE;
+                this.height = SPRITE_SIZE;
+                this.spriteSheet = spriteSheet;
+                this.isPlayer = isPlayer;
+                this.currentAnimation = 'idle';
+                this.frameIndex = 0;
+                this.frameCounter = 0;
+                this.facing = 'down';
+                this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
+                this.vx = 0;
+                this.vy = 0;
+            }
+            
+            update() {
+                if (this.isPlayer) {
+                    this.handleInput();
+                } else {
+                    this.followPlayer();
+                }
+                
+                let nextX = this.x + this.vx;
+                let nextY = this.y + this.vy;
+                
+                const frameWidth = this.spriteSheet ? this.spriteSheet.width / 9 : SPRITE_SIZE;
+                const frameHeight = this.spriteSheet ? this.spriteSheet.height / 4 : SPRITE_SIZE;
+                const spriteWidth = frameWidth * SCALE;
+                const spriteHeight = frameHeight * SCALE;
+                
+                const collisionPointY = nextY + (spriteHeight * 0.8);
+                
+                const yProgress = (collisionPointY - RING_BOUNDS.top) / (RING_BOUNDS.bottom - RING_BOUNDS.top);
+                const clampedProgress = Math.max(0, Math.min(1, yProgress));
+                
+                const currentLeftBound = RING_BOUNDS.topLeft + (RING_BOUNDS.bottomLeft - RING_BOUNDS.topLeft) * clampedProgress;
+                const currentRightBound = RING_BOUNDS.topRight + (RING_BOUNDS.bottomRight - RING_BOUNDS.topRight) * clampedProgress;
+                
+                const spriteCenterX = nextX + (spriteWidth * 0.5);
+                
+                if (spriteCenterX < currentLeftBound) {
+                    nextX = currentLeftBound - (spriteWidth * 0.5);
+                }
+                
+                if (spriteCenterX > currentRightBound) {
+                    nextX = currentRightBound - (spriteWidth * 0.5);
+                }
+                
+                if (collisionPointY < RING_BOUNDS.top) {
+                    nextY = RING_BOUNDS.top - (spriteHeight * 0.8);
+                }
+                if (collisionPointY > RING_BOUNDS.bottom) {
+                    nextY = RING_BOUNDS.bottom - (spriteHeight * 0.8);
+                }
+                
+                this.x = nextX;
+                this.y = nextY;
+                
+                this.frameCounter++;
+                const anim = ANIMATIONS[this.currentAnimation];
+                if (this.frameCounter >= anim.speed) {
+                    this.frameCounter = 0;
+                    this.frameIndex = (this.frameIndex + 1) % anim.frames;
+                }
+            }
+            
+            handleInput() {
+                this.vx = 0;
+                this.vy = 0;
+                let moving = false;
+                
+                if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+                    this.vy = -this.speed;
+                    this.currentAnimation = 'walkUp';
+                    this.facing = 'up';
+                    moving = true;
+                }
+                if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+                    this.vy = this.speed;
+                    this.currentAnimation = 'walkDown';
+                    this.facing = 'down';
+                    moving = true;
+                }
+                if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                    this.vx = -this.speed;
+                    this.currentAnimation = 'walkLeft';
+                    this.facing = 'left';
+                    moving = true;
+                }
+                if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                    this.vx = this.speed;
+                    this.currentAnimation = 'walkRight';
+                    this.facing = 'right';
+                    moving = true;
+                }
+                
+                if (touches.active) {
+                    const dx = touches.x - (this.x + this.width * SCALE / 2);
+                    const dy = touches.y - (this.y + this.height * SCALE / 2);
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 20) {
+                        this.vx = (dx / distance) * this.speed;
+                        this.vy = (dy / distance) * this.speed;
+                        
+                        if (Math.abs(dx) > Math.abs(dy)) {
+                            this.currentAnimation = dx > 0 ? 'walkRight' : 'walkLeft';
+                            this.facing = dx > 0 ? 'right' : 'left';
+                        } else {
+                            this.currentAnimation = dy > 0 ? 'walkDown' : 'walkUp';
+                            this.facing = dy > 0 ? 'down' : 'up';
+                        }
+                        moving = true;
+                    }
+                }
+                
+                if (this.vx !== 0 && this.vy !== 0) {
+                    this.vx *= 0.707;
+                    this.vy *= 0.707;
+                }
+                
+                if (!moving) {
+                    this.currentAnimation = 'idle';
+                    this.frameIndex = 0;
+                }
+            }
+            
+            followPlayer() {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                this.vx = 0;
+                this.vy = 0;
+                
+                if (distance > AI_FOLLOW_DISTANCE) {
+                    const dirX = dx / distance;
+                    const dirY = dy / distance;
+                    
+                    this.vx = dirX * this.speed;
+                    this.vy = dirY * this.speed;
+                    
+                    if (Math.abs(dirX) > Math.abs(dirY)) {
+                        if (dirX > 0) {
+                            this.currentAnimation = 'walkRight';
+                            this.facing = 'right';
+                        } else {
+                            this.currentAnimation = 'walkLeft';
+                            this.facing = 'left';
+                        }
+                    } else {
+                        if (dirY > 0) {
+                            this.currentAnimation = 'walkDown';
+                            this.facing = 'down';
+                        } else {
+                            this.currentAnimation = 'walkUp';
+                            this.facing = 'up';
+                        }
+                    }
+                } else {
+                    this.currentAnimation = 'idle';
+                    this.frameIndex = 0;
+                }
+            }
+            
+            draw() {
+                if (!this.spriteSheet) return;
+                
+                const anim = ANIMATIONS[this.currentAnimation];
+                const frameWidth = this.spriteSheet.width / 9;
+                const frameHeight = this.spriteSheet.height / 4;
+                
+                // For idle, use first frame of row 3; for others, animate through frames
+                let sourceX;
+                if (this.currentAnimation === 'idle') {
+                    sourceX = 0; // First sprite in the row (facing camera)
+                } else {
+                    sourceX = this.frameIndex * frameWidth;
+                }
+                
+                const sourceY = anim.row * frameHeight;
+                
+                ctx.drawImage(
+                    this.spriteSheet,
+                    sourceX, sourceY,
+                    frameWidth, frameHeight,
+                    Math.floor(this.x), Math.floor(this.y),
+                    frameWidth * SCALE, frameHeight * SCALE
+                );
+            }
+        }
+        
+        // Game objects
+        let player, opponent;
+        
+        // Load game assets
+        async function loadGameAssets() {
+            document.getElementById('loadingMessage').style.display = 'block';
+            
+            return new Promise((resolve) => {
+                let loadedCount = 0;
+                const totalAssets = 3;
+                
+                const checkAllLoaded = () => {
+                    loadedCount++;
+                    if (loadedCount === totalAssets) {
+                        document.getElementById('loadingMessage').style.display = 'none';
+                        resolve();
+                    }
+                };
+                
+                // Load ring
+                const ringImg = new Image();
+                ringImg.src = 'ring.png';
+                ringImg.onload = () => {
+                    images.ring = ringImg;
+                    checkAllLoaded();
+                };
+                ringImg.onerror = () => {
+                    console.error('Failed to load ring.png');
+                    checkAllLoaded();
+                };
+                
+                // Load player sprite
+                const playerImg = new Image();
+                playerImg.src = 'player_spritesheet.png';
+                playerImg.onload = () => {
+                    images.player = playerImg;
+                    checkAllLoaded();
+                };
+                playerImg.onerror = () => {
+                    console.error('Failed to load player_spritesheet.png');
+                    checkAllLoaded();
+                };
+                
+                // Load opponent sprite
+                const opponentImg = new Image();
+                opponentImg.src = 'opponent_spritesheet.png';
+                opponentImg.onload = () => {
+                    images.opponent = opponentImg;
+                    checkAllLoaded();
+                };
+                opponentImg.onerror = () => {
+                    console.error('Failed to load opponent_spritesheet.png');
+                    checkAllLoaded();
+                };
+            });
+        }
+        
+        // Start game
+        async function startGame() {
+            // Hide splash screen
+            document.getElementById('splashScreen').style.display = 'none';
+            
+            // Load assets
+            await loadGameAssets();
+            
+            // Show controls
+            document.getElementById('controls').style.display = 'block';
+            
+            // Initialize game objects
+            const centerX = (RING_BOUNDS.topLeft + RING_BOUNDS.topRight) / 2;
+            const centerY = (RING_BOUNDS.top + RING_BOUNDS.bottom) / 2;
+            
+            player = new Wrestler(centerX - 100, centerY, images.player, true);
+            opponent = new Wrestler(centerX + 100, centerY, images.opponent, false);
+            
+            gameRunning = true;
+            gameLoop();
+        }
+        
+        // Game loop
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            
+            // Draw ring background
+            if (images.ring) {
+                ctx.drawImage(images.ring, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+            }
+            
+            // Update wrestlers
+            player.update();
+            opponent.update();
+            
+            // Sort by Y position for proper layering
+            const wrestlers = [player, opponent].sort((a, b) => a.y - b.y);
+            wrestlers.forEach(wrestler => wrestler.draw());
+            
+            // Draw HUD
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('PLAYER 1', 20, 50);
+            ctx.textAlign = 'right';
+            ctx.fillText('CPU', GAME_WIDTH - 20, 50);
+            
+            // Health bars
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(20, 60, 300, 20);
+            ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(20, 60, 300, 20);
+            ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Handle touch/click on start button
+        document.getElementById('startButton').addEventListener('click', startGame);
+        document.getElementById('splashScreen').addEventListener('click', (e) => {
+            // Check if click is in the general area of the start button
+            const rect = e.currentTarget.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const relativeY = y / rect.height;
+            
+            // If clicked in bottom 40% of screen (where button likely is)
+            if (relativeY > 0.6 && relativeY < 0.8) {
+                startGame();
+            }
+        });
+        
+        // Input handling
+        window.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        // Touch controls
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = (clientX - rect.left) / actualScale;
+            const y = (clientY - rect.top) / actualScale;
+            
+            return { x, y };
+        }
+        
+        canvas.addEventListener('touchstart', (e) => {
+            if (gameRunning) {
+                const coords = getCanvasCoordinates(e);
+                touches.active = true;
+                touches.x = coords.x;
+                touches.y = coords.y;
+                e.preventDefault();
+            }
+        });
+        
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameRunning) {
+                const coords = getCanvasCoordinates(e);
+                touches.x = coords.x;
+                touches.y = coords.y;
+                e.preventDefault();
+            }
+        });
+        
+        canvas.addEventListener('touchend', (e) => {
+            touches.active = false;
+        });
+        
+        // Prevent zooming on mobile
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+        document.addEventListener('gestureend', (e) => e.preventDefault());
+    </script>
+</body>
+</html>
