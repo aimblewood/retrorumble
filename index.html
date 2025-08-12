@@ -1,5 +1,5 @@
         #muteButton {
-            position: absolute;
+            position: fixed;
             top: 10px;
             right: 10px;
             width: 50px;
@@ -11,9 +11,10 @@
             font-size: 24px;
             cursor: pointer;
             display: none;
-            z-index: 100;
+            z-index: 1000;
             text-align: center;
             line-height: 46px;
+            user-select: none;
         }
         
         #muteButton:hover {
@@ -40,15 +41,16 @@
             overflow: hidden;
             background: #000;
             font-family: 'Arial', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            margin: 0;
+            padding: 0;
         }
         
         #gameWrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -60,10 +62,6 @@
             image-rendering: pixelated;
             image-rendering: -moz-crisp-edges;
             image-rendering: crisp-edges;
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
         }
         
         #splashScreen {
@@ -151,14 +149,15 @@
     <div id="gameWrapper">
         <canvas id="gameCanvas"></canvas>
         
-        <button id="muteButton">🔊</button>
-        
         <div id="splashScreen">
             <img id="splashImage" src="splash.png" alt="Retro Rumble">
             <button id="startButton">CLICK TO START</button>
         </div>
         
         <div id="loadingMessage">Loading game assets...</div>
+    </div>
+    
+    <button id="muteButton">🔊</button>
     </div>
 
     <script>
