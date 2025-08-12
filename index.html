@@ -4,14 +4,13 @@
             right: 20px;
             width: 60px;
             height: 60px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 3px solid #000;
+            background: white;
+            border: 3px solid black;
             border-radius: 15px;
-            color: #000;
+            color: black;
             font-size: 30px;
             cursor: pointer;
-            display: none;
-            z-index: 9999;
+            z-index: 99999;
             text-align: center;
             line-height: 54px;
             user-select: none;
@@ -19,7 +18,7 @@
         }
         
         #muteButton:hover {
-            background: rgba(255, 255, 255, 1);
+            background: #f0f0f0;
             transform: scale(1.1);
         }<!DOCTYPE html>
 <html lang="en">
@@ -159,7 +158,7 @@
         <div id="loadingMessage">Loading game assets...</div>
     </div>
     
-    <button id="muteButton">🔊</button>
+    <button id="muteButton" style="position: fixed; top: 20px; right: 20px; width: 60px; height: 60px; background: white; border: 3px solid black; border-radius: 15px; color: black; font-size: 30px; cursor: pointer; z-index: 99999; display: none;">🔊</button>
     </div>
 
     <script>
@@ -272,7 +271,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3.0 : AI_SPEED * 1.5;
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3 : AI_SPEED * 1.5; // 3x speed for running!
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
@@ -583,8 +582,12 @@
             // Hide splash screen
             document.getElementById('splashScreen').style.display = 'none';
             
-            // Show mute button
-            document.getElementById('muteButton').style.display = 'block';
+            // Show mute button - make sure it's visible!
+            const muteBtn = document.getElementById('muteButton');
+            if (muteBtn) {
+                muteBtn.style.display = 'block';
+                console.log('Mute button shown');
+            }
             
             // Load assets
             await loadGameAssets();
