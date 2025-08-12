@@ -1,26 +1,4 @@
-        #muteButton {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: white;
-            border: 3px solid black;
-            border-radius: 15px;
-            color: black;
-            font-size: 30px;
-            cursor: pointer;
-            z-index: 99999;
-            text-align: center;
-            line-height: 54px;
-            user-select: none;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-        }
-        
-        #muteButton:hover {
-            background: #f0f0f0;
-            transform: scale(1.1);
-        }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -144,6 +122,31 @@
             font-size: 24px;
             display: none;
         }
+        
+        #muteButton {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: 3px solid black;
+            border-radius: 15px;
+            color: black;
+            font-size: 30px;
+            cursor: pointer;
+            z-index: 99999;
+            text-align: center;
+            line-height: 54px;
+            user-select: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+        
+        #muteButton:hover {
+            background: #f0f0f0;
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -158,8 +161,7 @@
         <div id="loadingMessage">Loading game assets...</div>
     </div>
     
-    <button id="muteButton" style="position: fixed; top: 20px; right: 20px; width: 60px; height: 60px; background: white; border: 3px solid black; border-radius: 15px; color: black; font-size: 30px; cursor: pointer; z-index: 99999; display: none;">🔊</button>
-    </div>
+    <button id="muteButton">🔊</button>
 
     <script>
         // Game configuration
@@ -253,7 +255,16 @@
             runDown: { row: 2, frames: 3, speed: 3, startFrame: 0 }, // Use walk animation at 2x speed
             runLeft: { row: 1, frames: 3, speed: 3, startFrame: 0 },
             runRight: { row: 3, frames: 3, speed: 3, startFrame: 0 },
-            runUp: { row: 0, frames: 3, speed: 3, startFrame: 0 }
+            runUp: { row: 0, frames: 3, speed: 3, startFrame: 0 },
+            // Attack animations - using later frames in spritesheet
+            punchDown: { row: 2, frames: 2, speed: 4, startFrame: 4 },
+            punchLeft: { row: 1, frames: 2, speed: 4, startFrame: 4 },
+            punchRight: { row: 3, frames: 2, speed: 4, startFrame: 4 },
+            punchUp: { row: 0, frames: 2, speed: 4, startFrame: 4 },
+            kickDown: { row: 2, frames: 2, speed: 4, startFrame: 6 },
+            kickLeft: { row: 1, frames: 2, speed: 4, startFrame: 6 },
+            kickRight: { row: 3, frames: 2, speed: 4, startFrame: 6 },
+            kickUp: { row: 0, frames: 2, speed: 4, startFrame: 6 }
         };
         
         // Wrestler class
@@ -275,13 +286,57 @@
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
+                
+                // Combat properties
+                this.health = 100;
+                this.maxHealth = 100;
+                this.isAttacking = false;
+                this.attackType = null;
+                this.attackCooldown = 0;
+                this.stunned = false;
+                this.stunTimer = 0;
+                this.hitFlash = 0;
             }
             
             update() {
-                if (this.isPlayer) {
-                    this.handleInput();
+                // Update timers
+                if (this.attackCooldown > 0) this.attackCooldown--;
+                if (this.stunTimer > 0) {
+                    this.stunTimer--;
+                    if (this.stunTimer <= 0) {
+                        this.stunned = false;
+                    }
+                }
+                if (this.hitFlash > 0) this.hitFlash--;
+                
+                // Skip movement if stunned
+                if (this.stunned) {
+                    this.vx = 0;
+                    this.vy = 0;
                 } else {
-                    this.followPlayer();
+                    if (this.isPlayer) {
+                        this.handleInput();
+                    } else {
+                        this.followPlayer();
+                    }
+                }
+                
+                // Handle attack animation completion
+                if (this.isAttacking) {
+                    const anim = ANIMATIONS[this.currentAnimation];
+                    if (this.frameIndex >= anim.frames - 1 && this.frameCounter >= anim.speed - 1) {
+                        this.isAttacking = false;
+                        this.attackType = null;
+                        // Return to idle
+                        if (this.facing === 'left') {
+                            this.currentAnimation = 'idleLeft';
+                        } else if (this.facing === 'right') {
+                            this.currentAnimation = 'idleRight';
+                        } else {
+                            this.currentAnimation = 'idle';
+                        }
+                        this.frameIndex = 0;
+                    }
                 }
                 
                 let nextX = this.x + this.vx;
@@ -320,11 +375,22 @@
                 this.x = nextX;
                 this.y = nextY;
                 
-                this.frameCounter++;
-                const anim = ANIMATIONS[this.currentAnimation];
-                if (this.frameCounter >= anim.speed) {
-                    this.frameCounter = 0;
-                    this.frameIndex = (this.frameIndex + 1) % anim.frames;
+                // Update animation frame
+                if (!this.isAttacking || this.currentAnimation.includes('punch') || this.currentAnimation.includes('kick')) {
+                    this.frameCounter++;
+                    const anim = ANIMATIONS[this.currentAnimation];
+                    if (this.frameCounter >= anim.speed) {
+                        this.frameCounter = 0;
+                        if (this.isAttacking) {
+                            // For attack animations, don't loop
+                            if (this.frameIndex < anim.frames - 1) {
+                                this.frameIndex++;
+                            }
+                        } else {
+                            // For normal animations, loop
+                            this.frameIndex = (this.frameIndex + 1) % anim.frames;
+                        }
+                    }
                 }
             }
             
@@ -333,9 +399,26 @@
                 this.vy = 0;
                 let moving = false;
                 
+                // Don't move if attacking
+                if (this.isAttacking) return;
+                
                 // Check if running (spacebar held or touch running)
                 this.isRunning = keys[' '] || touches.running || false;
                 const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
+                
+                // Attack inputs
+                if (keys['x'] || keys['X']) {
+                    if (!this.isAttacking && this.attackCooldown <= 0) {
+                        this.performAttack('punch');
+                        return;
+                    }
+                }
+                if (keys['z'] || keys['Z']) {
+                    if (!this.isAttacking && this.attackCooldown <= 0) {
+                        this.performAttack('kick');
+                        return;
+                    }
+                }
                 
                 // Keyboard input
                 if (keys['ArrowUp'] || keys['w'] || keys['W']) {
@@ -414,6 +497,14 @@
                 this.vx = 0;
                 this.vy = 0;
                 
+                // Simple AI: attack if close, otherwise follow
+                if (distance <= 100 && !this.isAttacking && this.attackCooldown <= 0) {
+                    // Random attack choice
+                    const attackType = Math.random() > 0.5 ? 'punch' : 'kick';
+                    this.performAttack(attackType);
+                    return;
+                }
+                
                 if (distance > AI_FOLLOW_DISTANCE) {
                     const dirX = dx / distance;
                     const dirY = dy / distance;
@@ -438,10 +529,95 @@
                             this.facing = 'up';
                         }
                     }
-                } else {
-                    this.currentAnimation = 'idle';
+                } else if (!this.isAttacking) {
+                    // Face the player when close
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        this.facing = dx > 0 ? 'right' : 'left';
+                        this.currentAnimation = this.facing === 'right' ? 'idleRight' : 'idleLeft';
+                    } else {
+                        this.facing = dy > 0 ? 'down' : 'up';
+                        this.currentAnimation = 'idle';
+                    }
                     this.frameIndex = 0;
                 }
+            }
+            
+            performAttack(attackType) {
+                this.isAttacking = true;
+                this.attackType = attackType;
+                this.attackCooldown = 30; // 30 frames cooldown
+                this.frameIndex = 0;
+                this.frameCounter = 0;
+                
+                // Set attack animation based on facing direction
+                this.currentAnimation = attackType + this.facing.charAt(0).toUpperCase() + this.facing.slice(1);
+                
+                // Check for hit on frame 1 of attack
+                setTimeout(() => {
+                    if (this.isPlayer) {
+                        this.checkAttackHit(opponent);
+                    } else {
+                        this.checkAttackHit(player);
+                    }
+                }, 100); // Small delay for attack timing
+            }
+            
+            checkAttackHit(target) {
+                if (!this.isAttacking) return;
+                
+                const myCenter = {
+                    x: this.x + (this.width * SCALE / 2),
+                    y: this.y + (this.height * SCALE / 2)
+                };
+                
+                const targetCenter = {
+                    x: target.x + (target.width * SCALE / 2),
+                    y: target.y + (target.height * SCALE / 2)
+                };
+                
+                const distance = Math.sqrt(
+                    Math.pow(myCenter.x - targetCenter.x, 2) + 
+                    Math.pow(myCenter.y - targetCenter.y, 2)
+                );
+                
+                // Attack range check (about 80 pixels)
+                const attackRange = 80 * SCALE;
+                
+                if (distance <= attackRange) {
+                    // Check if attack is in the right direction
+                    const dx = targetCenter.x - myCenter.x;
+                    const dy = targetCenter.y - myCenter.y;
+                    
+                    let hitDirection = false;
+                    switch(this.facing) {
+                        case 'up':
+                            hitDirection = dy < -20;
+                            break;
+                        case 'down':
+                            hitDirection = dy > 20;
+                            break;
+                        case 'left':
+                            hitDirection = dx < -20;
+                            break;
+                        case 'right':
+                            hitDirection = dx > 20;
+                            break;
+                    }
+                    
+                    if (hitDirection) {
+                        this.dealDamage(target);
+                    }
+                }
+            }
+            
+            dealDamage(target) {
+                const damage = this.attackType === 'punch' ? 8 : 12; // Kicks do more damage
+                target.health = Math.max(0, target.health - damage);
+                target.hitFlash = 10; // Flash white for 10 frames
+                target.stunned = true;
+                target.stunTimer = 15; // Stunned for 15 frames
+                
+                console.log(`${this.isPlayer ? 'Player' : 'CPU'} hit with ${this.attackType} for ${damage} damage!`);
             }
             
             draw() {
@@ -455,15 +631,26 @@
                 const frameWidth = currentSpriteSheet.width / 9;
                 const frameHeight = currentSpriteSheet.height / 4;
                 
-                // For idle animations, always use first frame (sprite 0) of the row
+                // Calculate source position
                 let sourceX;
                 if (this.currentAnimation.includes('idle')) {
                     sourceX = 0; // First sprite in the row
+                } else if (this.currentAnimation.includes('punch') || this.currentAnimation.includes('kick')) {
+                    // For attacks, use the calculated frame with start offset
+                    sourceX = (anim.startFrame + this.frameIndex) * frameWidth;
                 } else {
                     sourceX = this.frameIndex * frameWidth;
                 }
                 
                 const sourceY = anim.row * frameHeight;
+                
+                // Apply hit flash effect
+                if (this.hitFlash > 0) {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'screen';
+                    ctx.fillStyle = 'white';
+                    ctx.globalAlpha = 0.7;
+                }
                 
                 ctx.drawImage(
                     currentSpriteSheet,
@@ -472,6 +659,34 @@
                     Math.floor(this.x), Math.floor(this.y),
                     frameWidth * SCALE, frameHeight * SCALE
                 );
+                
+                if (this.hitFlash > 0) {
+                    ctx.restore();
+                }
+                
+                // Draw health bar above wrestler
+                this.drawHealthBar();
+            }
+            
+            drawHealthBar() {
+                const barWidth = 60;
+                const barHeight = 6;
+                const barX = this.x + (this.width * SCALE / 2) - (barWidth / 2);
+                const barY = this.y - 15;
+                
+                // Background
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                // Health
+                const healthPercent = this.health / this.maxHealth;
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
+                
+                // Border
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
             }
         }
         
@@ -643,14 +858,29 @@
             ctx.textAlign = 'right';
             ctx.fillText('CPU', GAME_WIDTH - 20, 50);
             
-            // Health bars
+            // Health bars background
             ctx.fillStyle = '#ff0000';
             ctx.fillRect(20, 60, 300, 20);
             ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
             
+            // Actual health bars
             ctx.fillStyle = '#00ff00';
-            ctx.fillRect(20, 60, 300, 20);
-            ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
+            const playerHealthPercent = player.health / player.maxHealth;
+            const opponentHealthPercent = opponent.health / opponent.maxHealth;
+            ctx.fillRect(20, 60, 300 * playerHealthPercent, 20);
+            ctx.fillRect(GAME_WIDTH - 320, 60, 300 * opponentHealthPercent, 20);
+            
+            // Health bar borders
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(20, 60, 300, 20);
+            ctx.strokeRect(GAME_WIDTH - 320, 60, 300, 20);
+            
+            // Show controls
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('X = Punch, Z = Kick, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
             
             requestAnimationFrame(gameLoop);
         }
@@ -699,7 +929,7 @@
                 }).catch(() => {});
             }
             
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'x', 'X', 'z', 'Z'].includes(e.key)) {
                 e.preventDefault();
             }
         });
