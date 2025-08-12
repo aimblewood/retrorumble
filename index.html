@@ -407,13 +407,13 @@
                 const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
                 
                 // Attack inputs
-                if (keys['x'] || keys['X']) {
+                if (keys['p'] || keys['P']) {
                     if (!this.isAttacking && this.attackCooldown <= 0) {
                         this.performAttack('punch');
                         return;
                     }
                 }
-                if (keys['z'] || keys['Z']) {
+                if (keys['o'] || keys['O']) {
                     if (!this.isAttacking && this.attackCooldown <= 0) {
                         this.performAttack('kick');
                         return;
@@ -552,18 +552,12 @@
                 // Set attack animation based on facing direction
                 this.currentAnimation = attackType + this.facing.charAt(0).toUpperCase() + this.facing.slice(1);
                 
-                // Check for hit on frame 1 of attack
-                setTimeout(() => {
-                    if (this.isPlayer) {
-                        this.checkAttackHit(opponent);
-                    } else {
-                        this.checkAttackHit(player);
-                    }
-                }, 100); // Small delay for attack timing
+                // Immediate hit check (no delay)
+                this.checkAttackHit(this.isPlayer ? opponent : player);
             }
             
             checkAttackHit(target) {
-                if (!this.isAttacking) return;
+                if (!this.isAttacking || !target) return;
                 
                 const myCenter = {
                     x: this.x + (this.width * SCALE / 2),
@@ -580,8 +574,10 @@
                     Math.pow(myCenter.y - targetCenter.y, 2)
                 );
                 
-                // Attack range check (about 80 pixels)
-                const attackRange = 80 * SCALE;
+                // Attack range check - increased range for easier hitting
+                const attackRange = 120;
+                
+                console.log(`Attack attempt: Distance=${Math.floor(distance)}, Range=${attackRange}, Facing=${this.facing}`);
                 
                 if (distance <= attackRange) {
                     // Check if attack is in the right direction
@@ -591,33 +587,43 @@
                     let hitDirection = false;
                     switch(this.facing) {
                         case 'up':
-                            hitDirection = dy < -20;
+                            hitDirection = dy < 0;
                             break;
                         case 'down':
-                            hitDirection = dy > 20;
+                            hitDirection = dy > 0;
                             break;
                         case 'left':
-                            hitDirection = dx < -20;
+                            hitDirection = dx < 0;
                             break;
                         case 'right':
-                            hitDirection = dx > 20;
+                            hitDirection = dx > 0;
                             break;
                     }
                     
+                    console.log(`Direction check: dx=${Math.floor(dx)}, dy=${Math.floor(dy)}, hitDirection=${hitDirection}`);
+                    
                     if (hitDirection) {
                         this.dealDamage(target);
+                        return true;
                     }
                 }
+                return false;
             }
             
             dealDamage(target) {
                 const damage = this.attackType === 'punch' ? 8 : 12; // Kicks do more damage
+                const oldHealth = target.health;
                 target.health = Math.max(0, target.health - damage);
                 target.hitFlash = 10; // Flash white for 10 frames
                 target.stunned = true;
                 target.stunTimer = 15; // Stunned for 15 frames
                 
-                console.log(`${this.isPlayer ? 'Player' : 'CPU'} hit with ${this.attackType} for ${damage} damage!`);
+                console.log(`HIT! ${this.isPlayer ? 'Player' : 'CPU'} ${this.attackType} for ${damage} damage! Health: ${oldHealth} -> ${target.health}`);
+                
+                // Check for knockout
+                if (target.health <= 0) {
+                    console.log(`${target.isPlayer ? 'Player' : 'CPU'} is knocked out!`);
+                }
             }
             
             draw() {
@@ -880,7 +886,7 @@
             ctx.fillStyle = 'white';
             ctx.font = '16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('X = Punch, Z = Kick, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
+            ctx.fillText('P = Punch, O = Kick, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
             
             requestAnimationFrame(gameLoop);
         }
@@ -929,7 +935,7 @@
                 }).catch(() => {});
             }
             
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'x', 'X', 'z', 'Z'].includes(e.key)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'p', 'P', 'o', 'O'].includes(e.key)) {
                 e.preventDefault();
             }
         });
