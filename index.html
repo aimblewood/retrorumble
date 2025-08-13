@@ -283,7 +283,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.5 : AI_SPEED * 1.5; // 3x speed for running!
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3 : AI_SPEED * 1.5; // 3x speed for running!
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
@@ -757,7 +757,7 @@
                 };
                 
                 // Load music
-                gameMusic = new Audio('game_music.mp4');
+                gameMusic = new Audio('game_music.mp3');
                 gameMusic.loop = true;
                 gameMusic.volume = 0.5;
                 gameMusic.addEventListener('canplaythrough', () => {
@@ -765,7 +765,7 @@
                     checkAllLoaded();
                 }, { once: true });
                 gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp4');
+                    console.error('Failed to load game_music.mp3');
                     gameMusic = null;
                     checkAllLoaded();
                 });
