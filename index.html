@@ -776,7 +776,7 @@
                 };
                 
                 // Load music
-                gameMusic = new Audio('game_music.mp3');
+                gameMusic = new Audio('game_music.mp4');
                 gameMusic.loop = true;
                 gameMusic.volume = 0.5;
                 gameMusic.addEventListener('canplaythrough', () => {
@@ -784,7 +784,7 @@
                     checkAllLoaded();
                 }, { once: true });
                 gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp3');
+                    console.error('Failed to load game_music.mp4');
                     gameMusic = null;
                     checkAllLoaded();
                 });
