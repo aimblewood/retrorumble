@@ -195,6 +195,7 @@
             opponentPunch: null
         };
         let gameMusic = null;
+        let punchSound = null;
         let musicPlaying = false;
         let keys = {};
         let touches = {};
@@ -414,7 +415,7 @@
                 this.isRunning = keys[' '] || touches.running || false;
                 const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
                 
-                // Attack inputs - only punch now
+                // Attack inputs - only punch now, based on current facing direction
                 if (keys['p'] || keys['P']) {
                     if (!this.isAttacking && this.attackCooldown <= 0) {
                         this.performAttack('punch');
@@ -499,13 +500,7 @@
                 this.vx = 0;
                 this.vy = 0;
                 
-                // Simple AI: attack if close, otherwise follow
-                if (distance <= 100 && !this.isAttacking && this.attackCooldown <= 0) {
-                    // Only punch attacks now
-                    this.performAttack('punch');
-                    return;
-                }
-                
+                // CPU no longer attacks - just follows and faces player
                 if (distance > AI_FOLLOW_DISTANCE) {
                     const dirX = dx / distance;
                     const dirY = dy / distance;
@@ -551,30 +546,45 @@
                 this.frameIndex = 0;
                 this.frameCounter = 0;
                 
-                // For punches, force left/right based on current facing or nearby target
-                if (this.isPlayer) {
-                    // For player, determine punch direction based on opponent position
-                    const dx = opponent.x - this.x;
-                    if (dx > 0) {
-                        this.facing = 'right';
-                        this.currentAnimation = 'punchRight';
-                    } else {
-                        this.facing = 'left';
-                        this.currentAnimation = 'punchLeft';
-                    }
+                // Use current facing direction for punch animation
+                if (this.facing === 'left') {
+                    this.currentAnimation = 'punchLeft';
+                } else if (this.facing === 'right') {
+                    this.currentAnimation = 'punchRight';
                 } else {
-                    // For AI, determine punch direction based on player position
-                    const dx = player.x - this.x;
-                    if (dx > 0) {
-                        this.facing = 'right';
-                        this.currentAnimation = 'punchRight';
+                    // If facing up/down, default to facing the opponent
+                    if (this.isPlayer) {
+                        const dx = opponent.x - this.x;
+                        if (dx > 0) {
+                            this.facing = 'right';
+                            this.currentAnimation = 'punchRight';
+                        } else {
+                            this.facing = 'left';
+                            this.currentAnimation = 'punchLeft';
+                        }
                     } else {
-                        this.facing = 'left';
-                        this.currentAnimation = 'punchLeft';
+                        const dx = player.x - this.x;
+                        if (dx > 0) {
+                            this.facing = 'right';
+                            this.currentAnimation = 'punchRight';
+                        } else {
+                            this.facing = 'left';
+                            this.currentAnimation = 'punchLeft';
+                        }
                     }
                 }
                 
                 console.log(`Punch animation set to: ${this.currentAnimation}, facing: ${this.facing}`);
+                
+                // Play punch sound effect
+                if (punchSound && this.isPlayer) {
+                    try {
+                        punchSound.currentTime = 0; // Reset to start
+                        punchSound.play();
+                    } catch (err) {
+                        console.log('Could not play punch sound:', err);
+                    }
+                }
                 
                 // Immediate hit check (no delay)
                 this.checkAttackHit(this.isPlayer ? opponent : player);
@@ -598,8 +608,8 @@
                     Math.pow(myCenter.y - targetCenter.y, 2)
                 );
                 
-                // Attack range check - increased range for easier hitting
-                const attackRange = 120;
+                // Attack range check - decreased by 50% from 120 to 60
+                const attackRange = 60;
                 
                 console.log(`Attack attempt: Distance=${Math.floor(distance)}, Range=${attackRange}, Facing=${this.facing}`);
                 
@@ -694,12 +704,16 @@
                 
                 const frameHeight = currentSpriteSheet.height / 4;
                 
-                // Calculate source position
+                // Calculate source position with reversed animation
                 let sourceX;
                 if (this.currentAnimation.includes('idle')) {
                     sourceX = 0; // First sprite in the row
+                } else if (this.currentAnimation.includes('punch')) {
+                    // Reverse the punch animation by flipping frame order
+                    const reversedFrame = (anim.frames - 1) - this.frameIndex;
+                    sourceX = reversedFrame * frameWidth;
                 } else {
-                    // For all other animations including punch
+                    // For all other animations
                     sourceX = this.frameIndex * frameWidth;
                 }
                 
@@ -707,7 +721,7 @@
                 
                 // Debug logging for punch frame calculation
                 if (this.currentAnimation.includes('punch')) {
-                    console.log(`Punch frame calc: sourceX=${sourceX}, sourceY=${sourceY}, frameWidth=${frameWidth}, frameHeight=${frameHeight}`);
+                    console.log(`Punch frame calc: frame=${this.frameIndex}, reversedFrame=${(anim.frames - 1) - this.frameIndex}, sourceX=${sourceX}, sourceY=${sourceY}`);
                 }
                 
                 // Apply hit flash effect
@@ -765,7 +779,7 @@
             
             return new Promise((resolve) => {
                 let loadedCount = 0;
-                const totalAssets = 8; // Updated count for punch sprites
+                const totalAssets = 9; // Updated count for punch sound
                 
                 const checkAllLoaded = () => {
                     loadedCount++;
@@ -776,7 +790,7 @@
                 };
                 
                 // Load music
-                gameMusic = new Audio('game_music.mp4');
+                gameMusic = new Audio('game_music.mp3');
                 gameMusic.loop = true;
                 gameMusic.volume = 0.5;
                 gameMusic.addEventListener('canplaythrough', () => {
@@ -784,13 +798,29 @@
                     checkAllLoaded();
                 }, { once: true });
                 gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp4');
+                    console.error('Failed to load game_music.mp3');
                     gameMusic = null;
                     checkAllLoaded();
                 });
                 
                 // Try to load the music
                 gameMusic.load();
+                
+                // Load punch sound
+                punchSound = new Audio('punch.mp3');
+                punchSound.volume = 0.7;
+                punchSound.addEventListener('canplaythrough', () => {
+                    console.log('Punch sound loaded successfully');
+                    checkAllLoaded();
+                }, { once: true });
+                punchSound.addEventListener('error', () => {
+                    console.error('Failed to load punch.mp3');
+                    punchSound = null;
+                    checkAllLoaded();
+                });
+                
+                // Try to load the punch sound
+                punchSound.load();
                 
                 // Load ring
                 const ringImg = new Image();
