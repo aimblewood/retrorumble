@@ -196,6 +196,7 @@
         };
         let gameMusic = null;
         let punchSound = null;
+        let missSound = null;
         let musicPlaying = false;
         let keys = {};
         let touches = {};
@@ -279,7 +280,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.2 : AI_SPEED * 1.5; // 3x speed for running!
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3 : AI_SPEED * 1.5; // 3x speed for running!
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
@@ -576,18 +577,32 @@
                 
                 console.log(`Punch animation set to: ${this.currentAnimation}, facing: ${this.facing}`);
                 
-                // Play punch sound effect
-                if (punchSound && this.isPlayer) {
-                    try {
-                        punchSound.currentTime = 0; // Reset to start
-                        punchSound.play();
-                    } catch (err) {
-                        console.log('Could not play punch sound:', err);
+                // Check for hit and play appropriate sound
+                const hitTarget = this.checkAttackHit(this.isPlayer ? opponent : player);
+                
+                if (this.isPlayer) {
+                    if (hitTarget) {
+                        // Play punch impact sound on successful hit
+                        if (punchSound) {
+                            try {
+                                punchSound.currentTime = 0; // Reset to start
+                                punchSound.play();
+                            } catch (err) {
+                                console.log('Could not play punch sound:', err);
+                            }
+                        }
+                    } else {
+                        // Play miss sound when punch doesn't connect
+                        if (missSound) {
+                            try {
+                                missSound.currentTime = 0; // Reset to start
+                                missSound.play();
+                            } catch (err) {
+                                console.log('Could not play miss sound:', err);
+                            }
+                        }
                     }
                 }
-                
-                // Immediate hit check (no delay)
-                this.checkAttackHit(this.isPlayer ? opponent : player);
             }
             
             checkAttackHit(target) {
@@ -609,7 +624,7 @@
                 );
                 
                 // Attack range check - decreased by 50% from 120 to 60
-                const attackRange = 85;
+                const attackRange = 60;
                 
                 console.log(`Attack attempt: Distance=${Math.floor(distance)}, Range=${attackRange}, Facing=${this.facing}`);
                 
@@ -779,7 +794,7 @@
             
             return new Promise((resolve) => {
                 let loadedCount = 0;
-                const totalAssets = 9; // Updated count for punch sound
+                const totalAssets = 10; // Updated count for miss sound
                 
                 const checkAllLoaded = () => {
                     loadedCount++;
@@ -790,7 +805,7 @@
                 };
                 
                 // Load music
-                gameMusic = new Audio('game_music.mp4');
+                gameMusic = new Audio('game_music.mp3');
                 gameMusic.loop = true;
                 gameMusic.volume = 0.5;
                 gameMusic.addEventListener('canplaythrough', () => {
@@ -798,7 +813,7 @@
                     checkAllLoaded();
                 }, { once: true });
                 gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp4');
+                    console.error('Failed to load game_music.mp3');
                     gameMusic = null;
                     checkAllLoaded();
                 });
@@ -821,6 +836,22 @@
                 
                 // Try to load the punch sound
                 punchSound.load();
+                
+                // Load miss sound
+                missSound = new Audio('miss.mp3');
+                missSound.volume = 0.5;
+                missSound.addEventListener('canplaythrough', () => {
+                    console.log('Miss sound loaded successfully');
+                    checkAllLoaded();
+                }, { once: true });
+                missSound.addEventListener('error', () => {
+                    console.error('Failed to load miss.mp3');
+                    missSound = null;
+                    checkAllLoaded();
+                });
+                
+                // Try to load the miss sound
+                missSound.load();
                 
                 // Load ring
                 const ringImg = new Image();
