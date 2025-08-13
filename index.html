@@ -544,6 +544,7 @@
             }
             
             performAttack(attackType) {
+                console.log(`Starting attack: ${attackType}`);
                 this.isAttacking = true;
                 this.attackType = attackType;
                 this.attackCooldown = 30; // 30 frames cooldown
@@ -572,6 +573,8 @@
                         this.currentAnimation = 'punchLeft';
                     }
                 }
+                
+                console.log(`Punch animation set to: ${this.currentAnimation}, facing: ${this.facing}`);
                 
                 // Immediate hit check (no delay)
                 this.checkAttackHit(this.isPlayer ? opponent : player);
@@ -663,17 +666,29 @@
                 
                 const anim = ANIMATIONS[this.currentAnimation];
                 
+                // Debug logging for punch animations
+                if (this.currentAnimation.includes('punch')) {
+                    console.log(`Drawing punch: ${this.currentAnimation}, frame: ${this.frameIndex}, isPlayer: ${this.isPlayer}`);
+                }
+                
                 // Use punch spritesheet for punch animations, regular for everything else
                 let currentSpriteSheet = this.spriteSheet;
-                let frameWidth = currentSpriteSheet.width / 9; // Default for regular sprites
+                let frameWidth = currentSpriteSheet.width / 9; // Default for regular sprites (9 frames)
                 
                 if (this.currentAnimation === 'punchLeft' || this.currentAnimation === 'punchRight') {
+                    // Try to use punch spritesheet if available
                     if (this.isPlayer && images.playerPunch) {
                         currentSpriteSheet = images.playerPunch;
                         frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
+                        console.log('Using player punch spritesheet');
                     } else if (!this.isPlayer && images.opponentPunch) {
                         currentSpriteSheet = images.opponentPunch;
                         frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
+                        console.log('Using opponent punch spritesheet');
+                    } else {
+                        // Fallback to regular spritesheet
+                        console.log('Punch spritesheet not found, using regular spritesheet');
+                        frameWidth = currentSpriteSheet.width / 9;
                     }
                 }
                 
@@ -683,15 +698,17 @@
                 let sourceX;
                 if (this.currentAnimation.includes('idle')) {
                     sourceX = 0; // First sprite in the row
-                } else if (this.currentAnimation.includes('punch')) {
-                    // For punch animations, use frame index directly
-                    sourceX = this.frameIndex * frameWidth;
                 } else {
-                    // For regular walk sprites
+                    // For all other animations including punch
                     sourceX = this.frameIndex * frameWidth;
                 }
                 
                 const sourceY = anim.row * frameHeight;
+                
+                // Debug logging for punch frame calculation
+                if (this.currentAnimation.includes('punch')) {
+                    console.log(`Punch frame calc: sourceX=${sourceX}, sourceY=${sourceY}, frameWidth=${frameWidth}, frameHeight=${frameHeight}`);
+                }
                 
                 // Apply hit flash effect
                 if (this.hitFlash > 0) {
@@ -804,7 +821,7 @@
                 playerPunchImg.src = 'player_punch_spritesheet.png';
                 playerPunchImg.onload = () => {
                     images.playerPunch = playerPunchImg;
-                    console.log('Player punch sprite loaded successfully');
+                    console.log('Player punch sprite loaded successfully:', playerPunchImg.width, 'x', playerPunchImg.height);
                     checkAllLoaded();
                 };
                 playerPunchImg.onerror = () => {
@@ -844,7 +861,7 @@
                 opponentPunchImg.src = 'opponent_punch_spritesheet.png';
                 opponentPunchImg.onload = () => {
                     images.opponentPunch = opponentPunchImg;
-                    console.log('Opponent punch sprite loaded successfully');
+                    console.log('Opponent punch sprite loaded successfully:', opponentPunchImg.width, 'x', opponentPunchImg.height);
                     checkAllLoaded();
                 };
                 opponentPunchImg.onerror = () => {
