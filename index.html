@@ -189,8 +189,10 @@
             ring: null,
             player: null,
             playerRun: null,
+            playerPunch: null,
             opponent: null,
-            opponentRun: null
+            opponentRun: null,
+            opponentPunch: null
         };
         let gameMusic = null;
         let musicPlaying = false;
@@ -245,26 +247,25 @@
         
         // Sprite animation configuration
         const ANIMATIONS = {
-            idle: { row: 2, frames: 1, speed: 10, startFrame: 0 }, // Default idle (facing camera)
-            idleLeft: { row: 1, frames: 1, speed: 10, startFrame: 0 }, // Row 2, first frame
-            idleRight: { row: 3, frames: 1, speed: 10, startFrame: 0 }, // Row 4, first frame
-            walkDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Row 3
-            walkLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 }, // Row 2
-            walkRight: { row: 3, frames: 3, speed: 6, startFrame: 0 }, // Row 4
-            walkUp: { row: 0, frames: 3, speed: 6, startFrame: 0 }, // Row 1
-            runDown: { row: 2, frames: 3, speed: 3, startFrame: 0 }, // Use walk animation at 2x speed
-            runLeft: { row: 1, frames: 3, speed: 3, startFrame: 0 },
-            runRight: { row: 3, frames: 3, speed: 3, startFrame: 0 },
-            runUp: { row: 0, frames: 3, speed: 3, startFrame: 0 },
-            // Attack animations - using later frames in spritesheet
-            punchDown: { row: 2, frames: 2, speed: 4, startFrame: 4 },
-            punchLeft: { row: 1, frames: 2, speed: 4, startFrame: 4 },
-            punchRight: { row: 3, frames: 2, speed: 4, startFrame: 4 },
-            punchUp: { row: 0, frames: 2, speed: 4, startFrame: 4 },
-            kickDown: { row: 2, frames: 2, speed: 4, startFrame: 6 },
-            kickLeft: { row: 1, frames: 2, speed: 4, startFrame: 6 },
-            kickRight: { row: 3, frames: 2, speed: 4, startFrame: 6 },
-            kickUp: { row: 0, frames: 2, speed: 4, startFrame: 6 }
+            idle: { row: 2, frames: 1, speed: 20, startFrame: 0 }, // Default idle (facing camera)
+            idleLeft: { row: 1, frames: 1, speed: 20, startFrame: 0 }, // Row 2, first frame
+            idleRight: { row: 3, frames: 1, speed: 20, startFrame: 0 }, // Row 4, first frame
+            walkDown: { row: 2, frames: 3, speed: 12, startFrame: 0 }, // Row 3
+            walkLeft: { row: 1, frames: 3, speed: 12, startFrame: 0 }, // Row 2
+            walkRight: { row: 3, frames: 3, speed: 12, startFrame: 0 }, // Row 4
+            walkUp: { row: 0, frames: 3, speed: 12, startFrame: 0 }, // Row 1
+            runDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Use walk animation at 2x speed
+            runLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 },
+            runRight: { row: 3, frames: 3, speed: 6, startFrame: 0 },
+            runUp: { row: 0, frames: 3, speed: 6, startFrame: 0 },
+            // Punch animations - only left and right using your sprite frames
+            punchLeft: { row: 1, frames: 6, speed: 6, startFrame: 0 }, // Row 2 from your punch sheet
+            punchRight: { row: 3, frames: 6, speed: 6, startFrame: 0 }, // Row 4 from your punch sheet
+            // Kick animations - using later frames in regular spritesheet
+            kickDown: { row: 2, frames: 2, speed: 8, startFrame: 6 },
+            kickLeft: { row: 1, frames: 2, speed: 8, startFrame: 6 },
+            kickRight: { row: 3, frames: 2, speed: 8, startFrame: 6 },
+            kickUp: { row: 0, frames: 2, speed: 8, startFrame: 6 }
         };
         
         // Wrestler class
@@ -282,7 +283,7 @@
                 this.frameCounter = 0;
                 this.facing = 'down';
                 this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3 : AI_SPEED * 1.5; // 3x speed for running!
+                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 2.5 : AI_SPEED * 1.5; // 3x speed for running!
                 this.vx = 0;
                 this.vy = 0;
                 this.isRunning = false;
@@ -549,8 +550,34 @@
                 this.frameIndex = 0;
                 this.frameCounter = 0;
                 
-                // Set attack animation based on facing direction
-                this.currentAnimation = attackType + this.facing.charAt(0).toUpperCase() + this.facing.slice(1);
+                // Only allow punching left/right, kicks in all directions
+                if (attackType === 'punch') {
+                    // For punches, force left/right based on current facing or nearby target
+                    if (this.isPlayer) {
+                        // For player, determine punch direction based on opponent position
+                        const dx = opponent.x - this.x;
+                        if (dx > 0) {
+                            this.facing = 'right';
+                            this.currentAnimation = 'punchRight';
+                        } else {
+                            this.facing = 'left';
+                            this.currentAnimation = 'punchLeft';
+                        }
+                    } else {
+                        // For AI, determine punch direction based on player position
+                        const dx = player.x - this.x;
+                        if (dx > 0) {
+                            this.facing = 'right';
+                            this.currentAnimation = 'punchRight';
+                        } else {
+                            this.facing = 'left';
+                            this.currentAnimation = 'punchLeft';
+                        }
+                    }
+                } else {
+                    // Kicks work in all directions as before
+                    this.currentAnimation = attackType + this.facing.charAt(0).toUpperCase() + this.facing.slice(1);
+                }
                 
                 // Immediate hit check (no delay)
                 this.checkAttackHit(this.isPlayer ? opponent : player);
@@ -631,10 +658,17 @@
                 
                 const anim = ANIMATIONS[this.currentAnimation];
                 
-                // Always use walk sprite sheet (don't use separate run sprites)
-                const currentSpriteSheet = this.spriteSheet;
+                // Use punch spritesheet for punch animations, regular for everything else
+                let currentSpriteSheet = this.spriteSheet;
+                if (this.currentAnimation === 'punchLeft' || this.currentAnimation === 'punchRight') {
+                    if (this.isPlayer && images.playerPunch) {
+                        currentSpriteSheet = images.playerPunch;
+                    } else if (!this.isPlayer && images.opponentPunch) {
+                        currentSpriteSheet = images.opponentPunch;
+                    }
+                }
                 
-                const frameWidth = currentSpriteSheet.width / 9;
+                const frameWidth = currentSpriteSheet.width / 6; // 6 frames per row for punch sheets
                 const frameHeight = currentSpriteSheet.height / 4;
                 
                 // Calculate source position
@@ -645,7 +679,9 @@
                     // For attacks, use the calculated frame with start offset
                     sourceX = (anim.startFrame + this.frameIndex) * frameWidth;
                 } else {
-                    sourceX = this.frameIndex * frameWidth;
+                    // For regular walk sprites, frameWidth should be sprite width / 9
+                    const regularFrameWidth = currentSpriteSheet.width / 9;
+                    sourceX = this.frameIndex * regularFrameWidth;
                 }
                 
                 const sourceY = anim.row * frameHeight;
@@ -658,12 +694,17 @@
                     ctx.globalAlpha = 0.7;
                 }
                 
+                // Adjust frame width for drawing based on sprite type
+                const drawFrameWidth = (this.currentAnimation.includes('punch') && 
+                    ((this.isPlayer && images.playerPunch) || (!this.isPlayer && images.opponentPunch))) 
+                    ? frameWidth : currentSpriteSheet.width / 9;
+                
                 ctx.drawImage(
                     currentSpriteSheet,
                     sourceX, sourceY,
-                    frameWidth, frameHeight,
+                    drawFrameWidth, frameHeight,
                     Math.floor(this.x), Math.floor(this.y),
-                    frameWidth * SCALE, frameHeight * SCALE
+                    drawFrameWidth * SCALE, frameHeight * SCALE
                 );
                 
                 if (this.hitFlash > 0) {
@@ -705,7 +746,7 @@
             
             return new Promise((resolve) => {
                 let loadedCount = 0;
-                const totalAssets = 6; // Include music in asset count
+                const totalAssets = 8; // Updated count for punch sprites
                 
                 const checkAllLoaded = () => {
                     loadedCount++;
@@ -716,7 +757,7 @@
                 };
                 
                 // Load music
-                gameMusic = new Audio('game_music.mp3');
+                gameMusic = new Audio('game_music.mp4');
                 gameMusic.loop = true;
                 gameMusic.volume = 0.5;
                 gameMusic.addEventListener('canplaythrough', () => {
@@ -724,7 +765,7 @@
                     checkAllLoaded();
                 }, { once: true });
                 gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp3');
+                    console.error('Failed to load game_music.mp4');
                     gameMusic = null;
                     checkAllLoaded();
                 });
@@ -756,6 +797,20 @@
                     checkAllLoaded();
                 };
                 
+                // Load player punch sprite
+                const playerPunchImg = new Image();
+                playerPunchImg.src = 'player_punch_spritesheet.png';
+                playerPunchImg.onload = () => {
+                    images.playerPunch = playerPunchImg;
+                    console.log('Player punch sprite loaded successfully');
+                    checkAllLoaded();
+                };
+                playerPunchImg.onerror = () => {
+                    console.log('Could not load player_punch_spritesheet.png - using regular sprites');
+                    images.playerPunch = null;
+                    checkAllLoaded();
+                };
+                
                 // Load player run sprite
                 const playerRunImg = new Image();
                 playerRunImg.src = 'player_run_spritesheet.png';
@@ -779,6 +834,20 @@
                 };
                 opponentImg.onerror = () => {
                     console.error('Failed to load opponent_spritesheet.png');
+                    checkAllLoaded();
+                };
+                
+                // Load opponent punch sprite
+                const opponentPunchImg = new Image();
+                opponentPunchImg.src = 'opponent_punch_spritesheet.png';
+                opponentPunchImg.onload = () => {
+                    images.opponentPunch = opponentPunchImg;
+                    console.log('Opponent punch sprite loaded successfully');
+                    checkAllLoaded();
+                };
+                opponentPunchImg.onerror = () => {
+                    console.log('Could not load opponent_punch_spritesheet.png - using regular sprites');
+                    images.opponentPunch = null;
                     checkAllLoaded();
                 };
                 
