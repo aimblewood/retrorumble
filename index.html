@@ -259,13 +259,8 @@
             runRight: { row: 3, frames: 3, speed: 6, startFrame: 0 },
             runUp: { row: 0, frames: 3, speed: 6, startFrame: 0 },
             // Punch animations - only left and right using your sprite frames
-            punchLeft: { row: 1, frames: 6, speed: 6, startFrame: 0 }, // Row 2 from your punch sheet
-            punchRight: { row: 3, frames: 6, speed: 6, startFrame: 0 }, // Row 4 from your punch sheet
-            // Kick animations - using later frames in regular spritesheet
-            kickDown: { row: 2, frames: 2, speed: 8, startFrame: 6 },
-            kickLeft: { row: 1, frames: 2, speed: 8, startFrame: 6 },
-            kickRight: { row: 3, frames: 2, speed: 8, startFrame: 6 },
-            kickUp: { row: 0, frames: 2, speed: 8, startFrame: 6 }
+            punchLeft: { row: 1, frames: 6, speed: 4, startFrame: 0 }, // Row 2 from your punch sheet (0-indexed)
+            punchRight: { row: 3, frames: 6, speed: 4, startFrame: 0 } // Row 4 from your punch sheet (0-indexed)
         };
         
         // Wrestler class
@@ -297,6 +292,8 @@
                 this.stunned = false;
                 this.stunTimer = 0;
                 this.hitFlash = 0;
+                this.knockbackX = 0;
+                this.knockbackY = 0;
             }
             
             update() {
@@ -309,6 +306,16 @@
                     }
                 }
                 if (this.hitFlash > 0) this.hitFlash--;
+                
+                // Apply knockback
+                if (this.knockbackX !== 0 || this.knockbackY !== 0) {
+                    this.x += this.knockbackX;
+                    this.y += this.knockbackY;
+                    this.knockbackX *= 0.8; // Decay knockback
+                    this.knockbackY *= 0.8;
+                    if (Math.abs(this.knockbackX) < 0.5) this.knockbackX = 0;
+                    if (Math.abs(this.knockbackY) < 0.5) this.knockbackY = 0;
+                }
                 
                 // Skip movement if stunned
                 if (this.stunned) {
@@ -377,7 +384,7 @@
                 this.y = nextY;
                 
                 // Update animation frame
-                if (!this.isAttacking || this.currentAnimation.includes('punch') || this.currentAnimation.includes('kick')) {
+                if (!this.isAttacking || this.currentAnimation.includes('punch')) {
                     this.frameCounter++;
                     const anim = ANIMATIONS[this.currentAnimation];
                     if (this.frameCounter >= anim.speed) {
@@ -407,16 +414,10 @@
                 this.isRunning = keys[' '] || touches.running || false;
                 const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
                 
-                // Attack inputs
+                // Attack inputs - only punch now
                 if (keys['p'] || keys['P']) {
                     if (!this.isAttacking && this.attackCooldown <= 0) {
                         this.performAttack('punch');
-                        return;
-                    }
-                }
-                if (keys['o'] || keys['O']) {
-                    if (!this.isAttacking && this.attackCooldown <= 0) {
-                        this.performAttack('kick');
                         return;
                     }
                 }
@@ -500,9 +501,8 @@
                 
                 // Simple AI: attack if close, otherwise follow
                 if (distance <= 100 && !this.isAttacking && this.attackCooldown <= 0) {
-                    // Random attack choice
-                    const attackType = Math.random() > 0.5 ? 'punch' : 'kick';
-                    this.performAttack(attackType);
+                    // Only punch attacks now
+                    this.performAttack('punch');
                     return;
                 }
                 
@@ -550,33 +550,27 @@
                 this.frameIndex = 0;
                 this.frameCounter = 0;
                 
-                // Only allow punching left/right, kicks in all directions
-                if (attackType === 'punch') {
-                    // For punches, force left/right based on current facing or nearby target
-                    if (this.isPlayer) {
-                        // For player, determine punch direction based on opponent position
-                        const dx = opponent.x - this.x;
-                        if (dx > 0) {
-                            this.facing = 'right';
-                            this.currentAnimation = 'punchRight';
-                        } else {
-                            this.facing = 'left';
-                            this.currentAnimation = 'punchLeft';
-                        }
+                // For punches, force left/right based on current facing or nearby target
+                if (this.isPlayer) {
+                    // For player, determine punch direction based on opponent position
+                    const dx = opponent.x - this.x;
+                    if (dx > 0) {
+                        this.facing = 'right';
+                        this.currentAnimation = 'punchRight';
                     } else {
-                        // For AI, determine punch direction based on player position
-                        const dx = player.x - this.x;
-                        if (dx > 0) {
-                            this.facing = 'right';
-                            this.currentAnimation = 'punchRight';
-                        } else {
-                            this.facing = 'left';
-                            this.currentAnimation = 'punchLeft';
-                        }
+                        this.facing = 'left';
+                        this.currentAnimation = 'punchLeft';
                     }
                 } else {
-                    // Kicks work in all directions as before
-                    this.currentAnimation = attackType + this.facing.charAt(0).toUpperCase() + this.facing.slice(1);
+                    // For AI, determine punch direction based on player position
+                    const dx = player.x - this.x;
+                    if (dx > 0) {
+                        this.facing = 'right';
+                        this.currentAnimation = 'punchRight';
+                    } else {
+                        this.facing = 'left';
+                        this.currentAnimation = 'punchLeft';
+                    }
                 }
                 
                 // Immediate hit check (no delay)
@@ -638,14 +632,25 @@
             }
             
             dealDamage(target) {
-                const damage = this.attackType === 'punch' ? 8 : 12; // Kicks do more damage
+                const damage = 10; // Punch damage
                 const oldHealth = target.health;
                 target.health = Math.max(0, target.health - damage);
                 target.hitFlash = 10; // Flash white for 10 frames
                 target.stunned = true;
                 target.stunTimer = 15; // Stunned for 15 frames
                 
-                console.log(`HIT! ${this.isPlayer ? 'Player' : 'CPU'} ${this.attackType} for ${damage} damage! Health: ${oldHealth} -> ${target.health}`);
+                // Apply knockback
+                const knockbackForce = 8;
+                const dx = target.x - this.x;
+                const dy = target.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    target.knockbackX = (dx / distance) * knockbackForce;
+                    target.knockbackY = (dy / distance) * knockbackForce;
+                }
+                
+                console.log(`HIT! ${this.isPlayer ? 'Player' : 'CPU'} punch for ${damage} damage! Health: ${oldHealth} -> ${target.health}`);
                 
                 // Check for knockout
                 if (target.health <= 0) {
@@ -660,28 +665,30 @@
                 
                 // Use punch spritesheet for punch animations, regular for everything else
                 let currentSpriteSheet = this.spriteSheet;
+                let frameWidth = currentSpriteSheet.width / 9; // Default for regular sprites
+                
                 if (this.currentAnimation === 'punchLeft' || this.currentAnimation === 'punchRight') {
                     if (this.isPlayer && images.playerPunch) {
                         currentSpriteSheet = images.playerPunch;
+                        frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
                     } else if (!this.isPlayer && images.opponentPunch) {
                         currentSpriteSheet = images.opponentPunch;
+                        frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
                     }
                 }
                 
-                const frameWidth = currentSpriteSheet.width / 6; // 6 frames per row for punch sheets
                 const frameHeight = currentSpriteSheet.height / 4;
                 
                 // Calculate source position
                 let sourceX;
                 if (this.currentAnimation.includes('idle')) {
                     sourceX = 0; // First sprite in the row
-                } else if (this.currentAnimation.includes('punch') || this.currentAnimation.includes('kick')) {
-                    // For attacks, use the calculated frame with start offset
-                    sourceX = (anim.startFrame + this.frameIndex) * frameWidth;
+                } else if (this.currentAnimation.includes('punch')) {
+                    // For punch animations, use frame index directly
+                    sourceX = this.frameIndex * frameWidth;
                 } else {
-                    // For regular walk sprites, frameWidth should be sprite width / 9
-                    const regularFrameWidth = currentSpriteSheet.width / 9;
-                    sourceX = this.frameIndex * regularFrameWidth;
+                    // For regular walk sprites
+                    sourceX = this.frameIndex * frameWidth;
                 }
                 
                 const sourceY = anim.row * frameHeight;
@@ -694,17 +701,12 @@
                     ctx.globalAlpha = 0.7;
                 }
                 
-                // Adjust frame width for drawing based on sprite type
-                const drawFrameWidth = (this.currentAnimation.includes('punch') && 
-                    ((this.isPlayer && images.playerPunch) || (!this.isPlayer && images.opponentPunch))) 
-                    ? frameWidth : currentSpriteSheet.width / 9;
-                
                 ctx.drawImage(
                     currentSpriteSheet,
                     sourceX, sourceY,
-                    drawFrameWidth, frameHeight,
+                    frameWidth, frameHeight,
                     Math.floor(this.x), Math.floor(this.y),
-                    drawFrameWidth * SCALE, frameHeight * SCALE
+                    frameWidth * SCALE, frameHeight * SCALE
                 );
                 
                 if (this.hitFlash > 0) {
@@ -955,7 +957,7 @@
             ctx.fillStyle = 'white';
             ctx.font = '16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('P = Punch, O = Kick, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
+            ctx.fillText('P = Punch, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
             
             requestAnimationFrame(gameLoop);
         }
@@ -1004,7 +1006,7 @@
                 }).catch(() => {});
             }
             
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'p', 'P', 'o', 'O'].includes(e.key)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'p', 'P'].includes(e.key)) {
                 e.preventDefault();
             }
         });
