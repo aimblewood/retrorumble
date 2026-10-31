@@ -1,1169 +1,1488 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Retro Rumble!</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            background: #000;
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        
-        #gameWrapper {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
-        }
-        
-        #gameCanvas {
-            display: block;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        
-        #splashScreen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #000;
-            cursor: pointer;
-        }
-        
-        #splashImage {
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            image-rendering: pixelated;
-            image-rendering: -moz-crisp-edges;
-            image-rendering: crisp-edges;
-        }
-        
-        #startButton {
-            position: absolute;
-            bottom: 12%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 400px;
-            height: 90px;
-            background: #00ff00;
-            border: 4px solid #00cc00;
-            border-radius: 10px;
-            cursor: pointer;
-            color: #000000;
-            font-size: 36px;
-            font-weight: bold;
-            font-family: Arial, sans-serif;
-            line-height: 90px;
-            text-align: center;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-            transition: all 0.2s;
-            z-index: 10;
-        }
-        
-        #startButton:hover {
-            background: #00ff33;
-            border-color: #00ff00;
-            transform: translateX(-50%) translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
-        }
-        
-        #startButton:active {
-            transform: translateX(-50%) translateY(0);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-        
-        #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            text-align: center;
-            display: none;
-        }
-        
-        #loadingMessage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
-            display: none;
-        }
-        
-        #muteButton {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            background: white;
-            border: 3px solid black;
-            border-radius: 15px;
-            color: black;
-            font-size: 30px;
-            cursor: pointer;
-            z-index: 99999;
-            text-align: center;
-            line-height: 54px;
-            user-select: none;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-            display: none;
-        }
-        
-        #muteButton:hover {
-            background: #f0f0f0;
-            transform: scale(1.1);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>Retro Rumble</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root { --u: 10px; --neon: #ffe14d; --hot: #ff3b5c; --cool: #3bd8ff; --ink: #0a0a14; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; touch-action: none; }
+  body { font-family: 'Press Start 2P', 'Courier New', monospace; color: #fff; user-select: none; -webkit-user-select: none; }
+  #stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #000; }
+  #game { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; text-align: center; gap: calc(var(--u) * 1.4); }
+  .screen.on { display: flex; }
+  .dim { background: radial-gradient(ellipse at center, rgba(10,10,30,.82) 0%, rgba(0,0,0,.95) 100%); }
+  h1 { font-size: calc(var(--u) * 5.2); color: var(--neon); letter-spacing: calc(var(--u) * .2);
+       text-shadow: calc(var(--u)*.35) calc(var(--u)*.35) 0 var(--hot), 0 0 calc(var(--u)*2) rgba(255,225,77,.5); font-style: italic; }
+  h2 { font-size: calc(var(--u) * 2.4); color: var(--neon); text-shadow: calc(var(--u)*.2) calc(var(--u)*.2) 0 var(--hot); }
+  h3 { font-size: calc(var(--u) * 1.3); color: var(--cool); }
+  p, li, td { font-size: calc(var(--u) * 1.05); line-height: 1.7; }
+  .sub { font-size: calc(var(--u) * 1.0); color: #aab; }
+  .btn { pointer-events: auto; font-family: inherit; font-size: calc(var(--u) * 1.5); padding: calc(var(--u)*1) calc(var(--u)*2.2);
+         background: #14142a; color: #fff; border: calc(var(--u)*.3) solid #3a3a6a; cursor: pointer; min-width: calc(var(--u)*28);
+         box-shadow: 0 calc(var(--u)*.4) 0 #000; transition: transform .08s; }
+  .btn.sel, .btn:hover { background: var(--neon); color: var(--ink); border-color: #fff; transform: scale(1.05); }
+  .btn.small { font-size: calc(var(--u)*1.05); min-width: 0; padding: calc(var(--u)*.7) calc(var(--u)*1.2); }
+  .row { display: flex; gap: calc(var(--u)*1); align-items: center; justify-content: center; flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: calc(var(--u)*1); align-items: center; }
+  #scr-title { background: #000; justify-content: flex-end; padding-bottom: calc(var(--u)*5); }
+  #scr-title img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+  #scr-title .btn { position: relative; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  .card { background: rgba(20,20,42,.92); border: calc(var(--u)*.3) solid #3a3a6a; padding: calc(var(--u)*.9); width: calc(var(--u)*15.2);
+          display: flex; flex-direction: column; align-items: center; gap: calc(var(--u)*.6); cursor: pointer; pointer-events: auto; }
+  .card.sel, .card:hover { border-color: var(--neon); box-shadow: 0 0 calc(var(--u)*1.5) rgba(255,225,77,.5); }
+  .card.beaten { opacity: .45; }
+  .card .nm { font-size: calc(var(--u)*.95); color: var(--neon); min-height: 2.6em; }
+  .card .ttl { font-size: calc(var(--u)*.7); color: #aab; }
+  .card canvas { width: calc(var(--u)*9.6); height: calc(var(--u)*9.6); image-rendering: pixelated; }
+  .bars { width: 100%; display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u)*.35) calc(var(--u)*.6); align-items: center; }
+  .bars span { font-size: calc(var(--u)*.6); color: #ccd; text-align: left; }
+  .bars i { display: block; height: calc(var(--u)*.6); background: #333; position: relative; }
+  .bars i b { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--hot), var(--neon)); }
+  table { border-collapse: collapse; margin: 0 auto; }
+  td { padding: calc(var(--u)*.3) calc(var(--u)*1); text-align: left; }
+  td:first-child { color: var(--neon); text-align: right; }
+  .tip { color: var(--cool); font-size: calc(var(--u)*.9); max-width: calc(var(--u)*80); }
+  .stat-row { display: grid; grid-template-columns: calc(var(--u)*14) calc(var(--u)*22) auto; gap: calc(var(--u)*1); align-items: center; }
+  .stat-row .lbl { font-size: calc(var(--u)*1.1); text-align: right; }
+  .pips { display: flex; gap: calc(var(--u)*.3); }
+  .pips u { display: block; width: calc(var(--u)*1.7); height: calc(var(--u)*1.4); background: #2a2a44; text-decoration: none; }
+  .pips u.on { background: var(--neon); }
+  #toast { position: absolute; left: 50%; bottom: calc(var(--u)*2); transform: translateX(-50%); font-size: calc(var(--u)*.9);
+           color: #fff; background: rgba(0,0,0,.6); padding: calc(var(--u)*.6) calc(var(--u)*1); display: none; pointer-events: none; }
+  /* touch controls */
+  #touch { position: absolute; inset: 0; pointer-events: none; display: none; }
+  #touch.on { display: block; }
+  #stick { position: absolute; left: calc(var(--u)*3); bottom: calc(var(--u)*3); width: calc(var(--u)*22); height: calc(var(--u)*22);
+           border-radius: 50%; background: rgba(255,255,255,.08); border: calc(var(--u)*.3) solid rgba(255,255,255,.25); pointer-events: auto; }
+  #knob { position: absolute; left: 50%; top: 50%; width: 40%; height: 40%; margin: -20% 0 0 -20%; border-radius: 50%; background: rgba(255,255,255,.35); }
+  .tb { position: absolute; width: calc(var(--u)*10); height: calc(var(--u)*10); border-radius: 50%; pointer-events: auto;
+        font-family: inherit; font-size: calc(var(--u)*1); color: #fff; border: calc(var(--u)*.3) solid rgba(255,255,255,.5); opacity: .85; }
+  .tb.down { transform: scale(.9); opacity: 1; }
+  #tb-strike { right: calc(var(--u)*14); bottom: calc(var(--u)*3); background: rgba(255,59,92,.55); }
+  #tb-grab { right: calc(var(--u)*3); bottom: calc(var(--u)*9); background: rgba(255,225,77,.5); }
+  #tb-guard { right: calc(var(--u)*14); bottom: calc(var(--u)*14.5); background: rgba(59,216,255,.5); }
+  #tb-run { right: calc(var(--u)*25); bottom: calc(var(--u)*3); background: rgba(120,255,120,.4); width: calc(var(--u)*8); height: calc(var(--u)*8); }
+  #tb-hype { right: calc(var(--u)*3); bottom: calc(var(--u)*20); background: rgba(200,120,255,.45); width: calc(var(--u)*8); height: calc(var(--u)*8); }
+  #tb-pause { position: absolute; left: 50%; top: calc(var(--u)*7.6); transform: translateX(-50%); width: calc(var(--u)*6); height: calc(var(--u)*4);
+              border-radius: calc(var(--u)*.6); font-size: calc(var(--u)*1.2); background: rgba(0,0,0,.5); }
+  #mute { position: fixed; top: 12px; right: 12px; width: 48px; height: 48px; font-size: 22px; border-radius: 12px; z-index: 50;
+          background: rgba(255,255,255,.9); border: 3px solid #000; cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) { #scr-title .btn { animation: none; } }
+</style>
 </head>
 <body>
-    <div id="gameWrapper">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div id="splashScreen">
-            <img id="splashImage" src="splash.png" alt="Retro Rumble">
-            <button id="startButton">CLICK TO START</button>
-        </div>
-        
-        <div id="loadingMessage">Loading game assets...</div>
-    </div>
-    
-    <button id="muteButton">🔊</button>
+<div id="stage">
+  <canvas id="game" width="1920" height="1080"></canvas>
+  <div id="ui">
+    <div id="scr-loading" class="screen on dim"><h2>LOADING…</h2><p class="sub" id="loadPct">0%</p></div>
 
-    <script>
-        // Game configuration
-        const BASE_WIDTH = 1920;
-        const BASE_HEIGHT = 1080;
-        const SPRITE_SIZE = 32;
-        const MOVEMENT_SPEED = 6;
-        const AI_FOLLOW_DISTANCE = 240;
-        const AI_SPEED = 4;
-        
-        // Dynamic scaling
-        let GAME_WIDTH = BASE_WIDTH;
-        let GAME_HEIGHT = BASE_HEIGHT;
-        let SCALE = 3;
-        let actualScale = 1;
-        
-        // Canvas setup
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingEnabled = false;
-        
-        // Game state
-        let gameRunning = false;
-        let images = {
-            ring: null,
-            player: null,
-            playerRun: null,
-            playerPunch: null,
-            opponent: null,
-            opponentRun: null,
-            opponentPunch: null
-        };
-        let gameMusic = null;
-        let punchSound = null;
-        let missSound = null;
-        let musicPlaying = false;
-        let keys = {};
-        let touches = {};
-        let lastTapTime = 0;
-        let doubleTapDelay = 300; // milliseconds for double-tap detection
-        
-        // Final ring boundaries (your perfect coordinates)
-        const RING_BOUNDS = {
-            topLeft: 415,
-            topRight: 1491,
-            top: 445,
-            bottomLeft: 329,
-            bottomRight: 1583,
-            bottom: 760
-        };
-        
-        // Setup responsive canvas
-        function setupCanvas() {
-            const displayWidth = window.innerWidth;
-            const displayHeight = window.innerHeight;
-            
-            const gameAspectRatio = BASE_WIDTH / BASE_HEIGHT;
-            const windowAspectRatio = displayWidth / displayHeight;
-            
-            let renderWidth, renderHeight;
-            
-            if (windowAspectRatio > gameAspectRatio) {
-                renderHeight = displayHeight;
-                renderWidth = displayHeight * gameAspectRatio;
-            } else {
-                renderWidth = displayWidth;
-                renderHeight = displayWidth / gameAspectRatio;
-            }
-            
-            GAME_WIDTH = BASE_WIDTH;
-            GAME_HEIGHT = BASE_HEIGHT;
-            
-            canvas.width = GAME_WIDTH;
-            canvas.height = GAME_HEIGHT;
-            
-            canvas.style.width = renderWidth + 'px';
-            canvas.style.height = renderHeight + 'px';
-            
-            actualScale = renderWidth / GAME_WIDTH;
-            SCALE = Math.max(2, Math.floor(3 * (GAME_WIDTH / BASE_WIDTH)));
+    <div id="scr-title" class="screen">
+      <img src="splash.png" alt="Retro Rumble">
+      <button class="btn" data-act="title">PRESS START</button>
+    </div>
+
+    <div id="scr-menu" class="screen dim">
+      <h1>RETRO RUMBLE</h1>
+      <p class="sub">HOMER WRESTLING ASSOCIATION</p>
+      <div class="col">
+        <button class="btn" data-act="arcade">ARCADE LADDER</button>
+        <button class="btn" data-act="exhibition">EXHIBITION</button>
+        <button class="btn" data-act="versus">2P VERSUS</button>
+        <button class="btn" data-act="help">HOW TO PLAY</button>
+        <button class="btn" data-act="difficulty" id="diffBtn">CPU: NORMAL</button>
+      </div>
+      <p class="sub" id="menuRecord"></p>
+    </div>
+
+    <div id="scr-ladder" class="screen dim">
+      <h2>ROAD TO THE HWA TITLE</h2>
+      <div class="row" id="ladderCards"></div>
+      <p class="tip" id="ladderTip"></p>
+      <div class="row">
+        <button class="btn" data-act="fight">FIGHT!</button>
+        <button class="btn small" data-act="newrun">NEW CAREER</button>
+        <button class="btn small" data-act="menu">BACK</button>
+      </div>
+    </div>
+
+    <div id="scr-select" class="screen dim">
+      <h2 id="selectTitle">CHOOSE YOUR OPPONENT</h2>
+      <div class="row" id="selectCards"></div>
+      <div class="row"><button class="btn small" data-act="menu">BACK</button></div>
+    </div>
+
+    <div id="scr-stats" class="screen dim">
+      <h2>LEVEL UP!</h2>
+      <p class="sub">Spend <span id="ptsLeft">2</span> training points</p>
+      <div class="col" id="statRows"></div>
+      <p class="tip" id="statTip">POWER: damage · SPEED: movement · STAMINA: endurance &amp; grip · CHARISMA: momentum gain</p>
+      <button class="btn" data-act="statsDone">CONTINUE</button>
+    </div>
+
+    <div id="scr-help" class="screen dim">
+      <h2>HOW TO PLAY</h2>
+      <table>
+        <tr><td>MOVE</td><td>WASD / ARROWS · Stick · D-Pad</td></tr>
+        <tr><td>RUN</td><td>SHIFT / SPACE · RT / RB</td></tr>
+        <tr><td>STRIKE</td><td>J · Pad X — tap 3x for a combo</td></tr>
+        <tr><td>GRAPPLE</td><td>K · Pad A — mash to win the tie-up</td></tr>
+        <tr><td>GUARD</td><td>L · Pad B — tap right at impact to COUNTER</td></tr>
+        <tr><td>HYPE</td><td>I · Pad Y — taunt the crowd for momentum</td></tr>
+        <tr><td>PAUSE</td><td>ESC / P · Start</td></tr>
+      </table>
+      <p class="tip">STRIKE beats GRAPPLE · GRAPPLE beats GUARD · a well-timed GUARD counters STRIKE.</p>
+      <p class="tip">Win a tie-up and hold a direction: TOWARD = Body Slam · AWAY = Suplex · nothing = Hip Toss · RUN = Irish Whip into the ropes.
+        Fill MOMENTUM to 100 and your next throw or running strike becomes your SIGNATURE move.</p>
+      <p class="tip">Run into the side ropes to rebound for a Running Lariat. Opponent down? GRAPPLE beside them to PIN, STRIKE to stomp, or GRAPPLE in a corner to climb the turnbuckle!
+        Getting pinned? MASH any button to kick out.</p>
+      <p class="sub">2P VERSUS — P1: WASD · F/G/H · T hype · L-SHIFT run &nbsp;|&nbsp; P2: ARROWS · , . / (or Num 1/2/3) · ' hype · R-SHIFT run</p>
+      <button class="btn" data-act="menu">BACK</button>
+    </div>
+
+    <div id="scr-pause" class="screen dim">
+      <h2>PAUSED</h2>
+      <div class="col">
+        <button class="btn" data-act="resume">RESUME</button>
+        <button class="btn" data-act="restart">RESTART MATCH</button>
+        <button class="btn" data-act="help2">CONTROLS</button>
+        <button class="btn" data-act="quit">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <div id="scr-result" class="screen dim">
+      <h1 id="resTitle">VICTORY!</h1>
+      <p id="resLine"></p>
+      <p class="sub" id="resSub"></p>
+      <div class="row" id="resBtns"></div>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <div id="touch">
+    <div id="stick"><div id="knob"></div></div>
+    <button class="tb" id="tb-strike" data-k="strike">STRIKE</button>
+    <button class="tb" id="tb-grab" data-k="grab">GRAB</button>
+    <button class="tb" id="tb-guard" data-k="guard">GUARD</button>
+    <button class="tb" id="tb-run" data-k="run">RUN</button>
+    <button class="tb" id="tb-hype" data-k="taunt">HYPE</button>
+    <button class="tb" id="tb-pause" data-k="pause">II</button>
+  </div>
+</div>
+<button id="mute" title="Toggle sound (M)">🔊</button>
+
+<script>
+'use strict';
+// =====================================================================
+//  RETRO RUMBLE — an arcade wrestling game for the HWA
+// =====================================================================
+const W = 1920, H = 1080, FRAME = 64, SC = 3.4, SPR = FRAME * SC, FOOT = 58 * SC;
+const RING = { tl: 415, tr: 1491, top: 465, bl: 329, br: 1583, bot: 778 };
+const MARGIN = 34;
+const CORNERS = [
+  { x: RING.tl + 30, y: RING.top + 4, z: 150, name: 'TL' },
+  { x: RING.tr - 30, y: RING.top + 4, z: 150, name: 'TR' },
+  { x: RING.bl + 40, y: RING.bot - 4, z: 130, name: 'BL' },
+  { x: RING.br - 40, y: RING.bot - 4, z: 130, name: 'BR' },
+];
+const MATCH_TIME = 180;
+const FREE_STATES = new Set(['idle', 'walk', 'run']);
+const GRABBABLE = new Set(['idle', 'walk', 'run', 'guard', 'hurt', 'dizzy', 'taunt', 'grabmiss', 'getupDone']);
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const stage = document.getElementById('stage');
+const reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const sign = v => v < 0 ? -1 : 1;
+const rand = (a, b) => a + Math.random() * (b - a);
+const ease = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+function fit() {
+  const ar = W / H; let w = innerWidth, h = innerHeight;
+  if (w / h > ar) w = h * ar; else h = w / ar;
+  stage.style.width = w + 'px'; stage.style.height = h + 'px';
+  stage.style.setProperty('--u', (w / 100) + 'px');
+}
+addEventListener('resize', fit); fit();
+
+// ---------------------------------------------------------------------
+//  Save data
+// ---------------------------------------------------------------------
+const SAVE_KEY = 'retroRumble.v2';
+let save = { titles: 0, wins: 0, losses: 0, bestTime: null, difficulty: 1, sound: true, career: null };
+try { Object.assign(save, JSON.parse(localStorage.getItem(SAVE_KEY) || '{}')); } catch (e) {}
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} }
+
+// ---------------------------------------------------------------------
+//  Assets
+// ---------------------------------------------------------------------
+const IMG = {};
+const IMG_SRC = {
+  ring: 'ring.png',
+  pIdle: 'player_spritesheet.png', pRun: 'player_run_spritesheet.png', pPunch: 'player_punch_spritesheet.png',
+  oIdle: 'opponent_spritesheet.png', oRun: 'opponent_run_spritesheet.png', oPunch: 'opponent_punch_spritesheet.png',
+};
+function loadImg(k, src) {
+  return new Promise(res => { const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = () => res(); i.src = src; });
+}
+
+// Palette swaps (sprites are indexed-colour pixel art)
+const PAL = {
+  p: { hair: ['#260d14', '#3e111a', '#73171e', '#9e1f1f', '#c7341b', '#e74716'],
+       trunks: ['#281e41', '#322d6a', '#3c49ad', '#466ac9', '#61a0ef'] },
+  o: { hair: ['#000000', '#080a0a', '#101414', '#1c2222', '#4a5057'],
+       trunks: ['#400b1f', '#651117', '#82171c', '#ab1e1e', '#cd2429'] },
+};
+const hex2rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+function ramp(baseHex, n) {
+  const [r, g, b] = hex2rgb(baseHex); const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 1 : i / (n - 1); const k = 0.28 + t * 0.95;
+    const add = Math.max(0, t - 0.75) * 120;
+    out.push([clamp(Math.round(r * k + add), 0, 255), clamp(Math.round(g * k + add), 0, 255), clamp(Math.round(b * k + add), 0, 255)]);
+  }
+  return out;
+}
+function recolor(img, base, opts) {
+  if (!img) return img;
+  try {
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height); const px = d.data;
+    const map = new Map();
+    const add = (srcList, dst) => srcList.forEach((h, i) => { const [r, g, b] = hex2rgb(h); map.set((r << 16) | (g << 8) | b, dst[i]); });
+    if (opts.trunks) add(PAL[base].trunks, ramp(opts.trunks, PAL[base].trunks.length));
+    if (opts.hair) add(PAL[base].hair, ramp(opts.hair, PAL[base].hair.length));
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 10) continue;
+      const m = map.get((px[i] << 16) | (px[i + 1] << 8) | px[i + 2]);
+      if (m) { px[i] = m[0]; px[i + 1] = m[1]; px[i + 2] = m[2]; }
+    }
+    x.putImageData(d, 0, 0); return c;
+  } catch (e) { return img; } // file:// pages can't read pixels — fall back to the original colours
+}
+function makeSheets(base, opts) {
+  const k = base === 'p' ? ['pIdle', 'pRun', 'pPunch'] : ['oIdle', 'oRun', 'oPunch'];
+  if (!opts) return { idle: IMG[k[0]], run: IMG[k[1]], punch: IMG[k[2]] };
+  return { idle: recolor(IMG[k[0]], base, opts), run: recolor(IMG[k[1]], base, opts), punch: recolor(IMG[k[2]], base, opts) };
+}
+
+// ---------------------------------------------------------------------
+//  Roster (all original HWA characters)
+// ---------------------------------------------------------------------
+const PLAYER_DEF = { id: 'you', name: 'THE ROOKIE', title: 'Rising Star', sig: 'RUMBLE BOMB', base: 'p', colors: null,
+                     stats: { power: 4, speed: 4, stamina: 4, charisma: 4 } };
+const RIVAL_DEF = { id: 'rival', name: 'KID CRIMSON', title: 'P2 Challenger', sig: 'CRIMSON CRASH', base: 'o', colors: null,
+                    stats: { power: 4, speed: 4, stamina: 4, charisma: 4 } };
+const ROSTER = [
+  { id: 'brick', name: '"BRICK" BRONSON', title: 'The Human Wall', sig: 'BRICK DROP', base: 'o', colors: { trunks: '#2f9e44' },
+    stats: { power: 6, speed: 2, stamina: 5, charisma: 2 },
+    ai: { aggr: .35, grab: .55, react: .12, mash: 5.0, ropes: .05, aerial: 0, taunt: .08, combo: .3, pinAt: .35, whip: .1 },
+    bio: 'Slow, heavy, and loves a bear-hug tie-up. Out-strike him.' },
+  { id: 'tornado', name: 'TOMMY "TORNADO" VEGA', title: 'High-Speed Hothead', sig: 'CYCLONE DRIVER', base: 'p', colors: { trunks: '#ff8a00', hair: '#5a3418' },
+    stats: { power: 3, speed: 8, stamina: 4, charisma: 5 },
+    ai: { aggr: .55, grab: .25, react: .25, mash: 6.5, ropes: .35, aerial: .35, taunt: .12, combo: .55, pinAt: .4, whip: .3 },
+    bio: 'Bounces off the ropes constantly. Guard his lariat and counter.' },
+  { id: 'monk', name: 'THE IRON MONK', title: 'Master of Reversals', sig: 'IRON SILENCE', base: 'o', colors: { trunks: '#d8d8e0', hair: '#7a7a86' },
+    stats: { power: 5, speed: 4, stamina: 7, charisma: 3 },
+    ai: { aggr: .3, grab: .45, react: .55, mash: 7.0, ropes: .05, aerial: .05, taunt: .02, combo: .5, pinAt: .45, whip: .2 },
+    bio: 'Counters careless strikes. Tie him up instead of punching.' },
+  { id: 'maddog', name: 'DEX "MAD DOG" MALONE', title: 'Turnbuckle Terror', sig: 'DOG POUND', base: 'p', colors: { trunks: '#9b30ff' },
+    stats: { power: 6, speed: 6, stamina: 5, charisma: 6 },
+    ai: { aggr: .8, grab: .35, react: .3, mash: 8.0, ropes: .25, aerial: .7, taunt: .2, combo: .7, pinAt: .5, whip: .35 },
+    bio: 'Relentless and reckless. Punish him when he climbs the corner.' },
+  { id: 'gideon', name: '"GOLDEN" GIDEON KRAY', title: 'HWA World Champion', sig: 'GOLDEN GATE', base: 'p', colors: { trunks: '#ffc400', hair: '#ffd84a' },
+    stats: { power: 8, speed: 6, stamina: 8, charisma: 8 },
+    ai: { aggr: .6, grab: .5, react: .5, mash: 9.0, ropes: .25, aerial: .3, taunt: .15, combo: .75, pinAt: .55, whip: .35 },
+    bio: 'The champ does everything well. Build momentum and hit your signature.' },
+];
+const DIFF = [{ name: 'EASY', m: .7 }, { name: 'NORMAL', m: 1 }, { name: 'HARD', m: 1.3 }];
+
+// ---------------------------------------------------------------------
+//  Audio
+// ---------------------------------------------------------------------
+let actx = null, master = null, crowdGain = null;
+let music = null, sPunch = null, sMiss = null;
+function initAudio() {
+  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
+  try {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    master = actx.createGain(); master.gain.value = save.sound ? .7 : 0; master.connect(actx.destination);
+    // crowd bed: looping filtered noise whose level follows the hype meter
+    const len = actx.sampleRate * 2, buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+    let last = 0; for (let i = 0; i < len; i++) { last = last * .97 + (Math.random() * 2 - 1) * .03; d[i] = last * 6; }
+    const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 900; bp.Q.value = .6;
+    crowdGain = actx.createGain(); crowdGain.gain.value = 0;
+    src.connect(bp); bp.connect(crowdGain); crowdGain.connect(master); src.start();
+  } catch (e) { actx = null; }
+}
+function tone(freq, dur, type = 'sine', vol = .3, slide = 0, delay = 0) {
+  if (!actx || !save.sound) return;
+  const t = actx.currentTime + delay, o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq + slide), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + .02);
+}
+function noise(dur, vol = .4, freq = 400, delay = 0) {
+  if (!actx || !save.sound) return;
+  const t = actx.currentTime + delay, len = Math.ceil(actx.sampleRate * dur), b = actx.createBuffer(1, len, actx.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+  const s = actx.createBufferSource(); s.buffer = b; const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq;
+  const g = actx.createGain(); g.gain.value = vol; s.connect(f); f.connect(g); g.connect(master); s.start(t);
+}
+const SFX = {
+  bell(n = 1) { for (let i = 0; i < n; i++) { tone(1320, 1.2, 'sine', .25, 0, i * .32); tone(2650, .8, 'sine', .08, 0, i * .32); tone(660, 1.4, 'triangle', .1, 0, i * .32); } },
+  hit(heavy) { playClip(sPunch, heavy ? .9 : .6); if (heavy) noise(.15, .5, 250); },
+  miss() { playClip(sMiss, .5); },
+  block() { tone(900, .07, 'square', .12, -300); noise(.05, .2, 3000); },
+  counter() { tone(500, .1, 'square', .2, 700); tone(1400, .25, 'triangle', .2, 0, .06); },
+  thud(big) { noise(big ? .5 : .3, big ? .9 : .6, big ? 160 : 220); tone(70, .35, 'sine', .5, -30); },
+  rope() { tone(110, .35, 'sawtooth', .12, 60); tone(220, .2, 'triangle', .1, -80); },
+  count(n) { tone(n === 3 ? 520 : 780, .18, 'square', .18); },
+  grab() { noise(.08, .25, 1200); },
+  cheer(v = 1) { if (!crowdGain || !save.sound) return; const g = crowdGain.gain, t = actx.currentTime;
+    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(Math.min(.55, .12 + .35 * v), t + .08); g.linearRampToValueAtTime(.06 + G.hype / 900, t + 1.6); },
+  menu() { tone(660, .06, 'square', .08); },
+  ok() { tone(880, .08, 'square', .1); tone(1320, .12, 'square', .1, 0, .07); },
+};
+function playClip(a, vol) {
+  if (!a || !save.sound) return;
+  try { const c = a.cloneNode(); c.volume = vol; c.play().catch(() => {}); } catch (e) {}
+}
+function startMusic() {
+  if (!music || !save.sound) return;
+  music.volume = .32; music.loop = true; music.play().catch(() => {});
+}
+function setSound(on) {
+  save.sound = on; persist();
+  document.getElementById('mute').textContent = on ? '🔊' : '🔇';
+  if (master) master.gain.value = on ? .7 : 0;
+  if (music) { if (on) startMusic(); else music.pause(); }
+}
+
+// ---------------------------------------------------------------------
+//  Input  (keyboard · gamepad · touch)
+// ---------------------------------------------------------------------
+const keys = new Set();
+const keysHit = new Set(); // keys pressed since the last tick — catches taps shorter than a frame
+const ACTIONS = ['up', 'down', 'left', 'right', 'run', 'strike', 'grab', 'guard', 'taunt', 'pause'];
+const KEYMAP_SOLO = {
+  up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
+  run: ['ShiftLeft', 'ShiftRight', 'Space'], strike: ['KeyJ', 'KeyZ'], grab: ['KeyK', 'KeyX'], guard: ['KeyL', 'KeyC'],
+  taunt: ['KeyI', 'KeyV'], pause: ['Escape', 'KeyP'],
+};
+const KEYMAP_P1 = {
+  up: ['KeyW'], down: ['KeyS'], left: ['KeyA'], right: ['KeyD'], run: ['ShiftLeft', 'Space'],
+  strike: ['KeyF'], grab: ['KeyG'], guard: ['KeyH'], taunt: ['KeyT'], pause: ['Escape', 'KeyP'],
+};
+const KEYMAP_P2 = {
+  up: ['ArrowUp'], down: ['ArrowDown'], left: ['ArrowLeft'], right: ['ArrowRight'], run: ['ShiftRight', 'Numpad0'],
+  strike: ['Comma', 'Numpad1'], grab: ['Period', 'Numpad2'], guard: ['Slash', 'Numpad3'], taunt: ['Quote', 'Numpad4'], pause: [],
+};
+const touchState = { mx: 0, my: 0, strike: false, grab: false, guard: false, run: false, taunt: false, pause: false };
+let usingTouch = false;
+
+class Ctrl {
+  constructor(keymap, padSlot, touch) { this.keymap = keymap; this.padSlot = padSlot; this.touch = touch; this.cur = {}; this.prev = {}; this.mx = 0; this.my = 0; }
+  poll(pads) {
+    this.prev = this.cur; const c = {};
+    for (const a of ACTIONS) c[a] = (this.keymap[a] || []).some(k => keys.has(k) || keysHit.has(k));
+    let mx = (c.right ? 1 : 0) - (c.left ? 1 : 0), my = (c.down ? 1 : 0) - (c.up ? 1 : 0);
+    const pad = this.padSlot === 'any' ? pads.find(p => p) : (this.padSlot != null ? pads[this.padSlot] : null);
+    if (pad) {
+      const b = i => pad.buttons[i] && pad.buttons[i].pressed;
+      const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+      if (Math.abs(ax) > .3) mx = ax; if (Math.abs(ay) > .3) my = ay;
+      if (b(14)) mx = -1; if (b(15)) mx = 1; if (b(12)) my = -1; if (b(13)) my = 1;
+      c.strike ||= b(2); c.grab ||= b(0); c.guard ||= b(1); c.taunt ||= b(3);
+      c.run ||= b(5) || b(7) || b(4) || b(6); c.pause ||= b(9);
+      c.up ||= my < -.5; c.down ||= my > .5; c.left ||= mx < -.5; c.right ||= mx > .5;
+    }
+    if (this.touch) {
+      const t = touchState;
+      if (Math.abs(t.mx) > .2 || Math.abs(t.my) > .2) { mx = t.mx; my = t.my; }
+      for (const k of ['strike', 'grab', 'guard', 'run', 'taunt', 'pause']) c[k] ||= t[k];
+      c.up ||= t.my < -.5; c.down ||= t.my > .5; c.left ||= t.mx < -.5; c.right ||= t.mx > .5;
+    }
+    this.cur = c; this.mx = clamp(mx, -1, 1); this.my = clamp(my, -1, 1);
+  }
+  pressed(a) { return !!this.cur[a] && !this.prev[a]; }
+  intent() {
+    const I = blankIntent();
+    I.mx = this.mx; I.my = this.my; I.run = !!this.cur.run;
+    I.strikeP = this.pressed('strike'); I.grabP = this.pressed('grab'); I.guardP = this.pressed('guard');
+    I.guardH = !!this.cur.guard; I.tauntP = this.pressed('taunt');
+    I.mashP = I.strikeP || I.grabP || I.guardP;
+    return I;
+  }
+}
+function blankIntent() { return { mx: 0, my: 0, run: false, strikeP: false, grabP: false, guardP: false, guardH: false, tauntP: false, mashP: false }; }
+function getPads() { try { return Array.from(navigator.getGamepads ? navigator.getGamepads() : []).filter(p => p && p.connected); } catch (e) { return []; } }
+
+const menuCtrl = new Ctrl({
+  up: ['KeyW', 'ArrowUp'], down: ['KeyS', 'ArrowDown'], left: ['KeyA', 'ArrowLeft'], right: ['KeyD', 'ArrowRight'],
+  strike: ['Enter', 'Space', 'KeyJ', 'KeyF', 'NumpadEnter'], guard: ['Escape', 'Backspace'], pause: [],
+}, 'any', false);
+
+addEventListener('keydown', e => {
+  initAudio();
+  if (e.code === 'KeyM') { setSound(!save.sound); return; }
+  keys.add(e.code); if (!e.repeat) keysHit.add(e.code);
+  if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Slash' || e.code === 'Quote') e.preventDefault();
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+// touch controls
+(function setupTouch() {
+  const stick = document.getElementById('stick'), knob = document.getElementById('knob'), touchEl = document.getElementById('touch');
+  let stickId = null;
+  const enable = () => { if (!usingTouch) { usingTouch = true; updateTouchVis(); } };
+  addEventListener('touchstart', enable, { passive: true });
+  if (matchMedia('(pointer: coarse)').matches) usingTouch = true;
+  const moveStick = e => {
+    const r = stick.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    let dx = (e.clientX - cx) / (r.width / 2), dy = (e.clientY - cy) / (r.height / 2); const l = Math.hypot(dx, dy);
+    if (l > 1) { dx /= l; dy /= l; }
+    touchState.mx = dx; touchState.my = dy;
+    knob.style.transform = `translate(${dx * 60}%, ${dy * 60}%)`;
+  };
+  stick.addEventListener('pointerdown', e => { initAudio(); stickId = e.pointerId; stick.setPointerCapture(e.pointerId); moveStick(e); e.preventDefault(); });
+  stick.addEventListener('pointermove', e => { if (e.pointerId === stickId) moveStick(e); });
+  const endStick = e => { if (e.pointerId !== stickId) return; stickId = null; touchState.mx = touchState.my = 0; knob.style.transform = ''; };
+  stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick);
+  touchEl.querySelectorAll('.tb').forEach(b => {
+    const k = b.dataset.k;
+    const on = e => { initAudio(); e.preventDefault(); b.setPointerCapture && b.setPointerCapture(e.pointerId); if (k === 'run') touchState.run = true; else touchState[k] = true; b.classList.add('down'); };
+    const off = e => { if (k !== 'run' || e.type !== 'pointerleave') touchState[k] = false; b.classList.remove('down'); };
+    b.addEventListener('pointerdown', on); b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off);
+  });
+})();
+function updateTouchVis() {
+  document.getElementById('touch').classList.toggle('on', usingTouch && (G.state === 'fight' || G.state === 'intro' || G.state === 'over') && G.mode !== 'versus');
+}
+
+// ---------------------------------------------------------------------
+//  Fighter
+// ---------------------------------------------------------------------
+let ATK_ID = 0;
+class Fighter {
+  constructor(def, sheets, side, stats) {
+    this.def = def; this.name = def.name; this.sig = def.sig; this.sheets = sheets; this.side = side;
+    this.stats = Object.assign({}, stats || def.stats);
+    this.ai = def.ai ? Object.assign({}, def.ai) : null; this.ctrl = null;
+    this.reset();
+  }
+  reset() {
+    this.x = this.side === 0 ? 720 : 1200; this.y = 640; this.z = 0; this.face = this.side === 0 ? 1 : -1;
+    this.vx = 0; this.vy = 0; this.rot = 0; this.state = 'idle'; this.t = 0; this.animT = 0; this.dirRow = null;
+    this.maxHp = 100; this.hp = 100; this.ghost = 100;
+    this.maxSta = 60 + this.stats.stamina * 7; this.sta = this.maxSta; this.mom = 0;
+    this.combo = 0; this.queued = false; this.hitDone = false; this.guardAt = -999; this.invuln = 0; this.flash = 0;
+    this.downLen = 0; this.reboundT = 0; this.rbDir = 0; this.stunLen = 0; this.launched = false; this.atkId = 0;
+    this.mem = {}; this.stats_dealt = 0; this.bounced = false; this.sigMove = false;
+  }
+  get dmgMul() { return .72 + this.stats.power * .055; }
+  get walk() { return 4.2 + this.stats.speed * .3; }
+  get momMul() { return .6 + this.stats.charisma * .1; }
+  get regen() { return .14 + this.stats.stamina * .025; }
+  get grip() { return .55 + this.stats.power * .05 + (this.sta / this.maxSta) * .35 + this.stats.stamina * .02; }
+  setState(s) { this.state = s; this.t = 0; }
+  faceTo(o) { if (Math.abs(o.x - this.x) > 4) this.face = sign(o.x - this.x); }
+}
+
+// ---------------------------------------------------------------------
+//  Game state
+// ---------------------------------------------------------------------
+const G = {
+  state: 'boot', mode: 'arcade', f: [], frame: 0, time: MATCH_TIME, lock: null, pin: null, thr: null,
+  banners: [], parts: [], popups: [], shake: 0, hitstop: 0, slow: 0, hype: 20, ropeWob: 0, ropeWobSide: 'B',
+  introT: 0, overT: 0, winner: null, method: '', flashes: [], whiteout: 0, opponentIdx: 0, diff: save.difficulty ?? 1,
+};
+let ctrls = [];
+
+function banner(text, color = '#ffe14d', size = 96, life = 70, y = 300) {
+  G.banners = G.banners.filter(b => b.y !== y || b.t > 10);
+  G.banners.push({ text, color, size, life, t: 0, y });
+}
+function popup(x, y, text, color = '#fff') { G.popups.push({ x, y, text, color, t: 0 }); }
+function sparks(x, y, color, n = 10, spd = 9) {
+  for (let i = 0; i < n; i++) { const a = rand(0, Math.PI * 2), s = rand(spd * .3, spd);
+    G.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2, life: rand(14, 26), t: 0, color, size: rand(5, 11), g: .35 }); }
+}
+function dust(x, y, n = 16) {
+  for (let i = 0; i < n; i++) G.parts.push({ x: x + rand(-60, 60), y: y + rand(-6, 6), vx: rand(-5, 5), vy: rand(-3, -.5), life: rand(20, 40), t: 0, color: '#e9e2cf', size: rand(10, 22), g: -.02, fade: true });
+}
+function shake(n) { G.shake = Math.max(G.shake, reduceMotion ? n * .3 : n); }
+function hype(n) { G.hype = clamp(G.hype + n, 0, 100); }
+function other(f) { return G.f[0] === f ? G.f[1] : G.f[0]; }
+
+function xBounds(y) {
+  const p = clamp((y - RING.top) / (RING.bot - RING.top), 0, 1);
+  return [lerp(RING.tl, RING.bl, p) + MARGIN, lerp(RING.tr, RING.br, p) - MARGIN];
+}
+function clampRing(f) {
+  let side = null;
+  if (f.y < RING.top) { f.y = RING.top; side = 'T'; }
+  if (f.y > RING.bot) { f.y = RING.bot; side = 'B'; }
+  const [l, r] = xBounds(f.y);
+  if (f.x < l) { f.x = l; side = 'L'; }
+  if (f.x > r) { f.x = r; side = 'R'; }
+  return side;
+}
+function nearCorner(f, d = 120) {
+  let best = null, bd = 1e9;
+  for (const c of CORNERS) { const dd = Math.hypot(c.x - f.x, (c.y - f.y) * 1.6); if (dd < bd) { bd = dd; best = c; } }
+  return bd < d ? best : null;
+}
+function nearestCorner(f) { return nearCorner(f, 1e9); }
+function ropeWobble(side, amt) { G.ropeWob = Math.max(G.ropeWob, amt); G.ropeWobSide = side; SFX.rope(); }
+
+// ---------------------------------------------------------------------
+//  Combat
+// ---------------------------------------------------------------------
+function inReach(a, t, reach, depth = 44) {
+  const dx = t.x - a.x;
+  return Math.abs(t.y - a.y) < depth && Math.abs(dx) < reach && (sign(dx) === a.face || Math.abs(dx) < 30);
+}
+function knockDown(t, fromX, dmg, extra = 0) {
+  t.setState('down'); t.z = 0; t.rot = 0;
+  t.downLen = 55 + dmg * 3 + (1 - t.hp / t.maxHp) * 70 + extra;
+  t.lieDir = sign(t.x - fromX); t.vx = t.lieDir * 6; t.vy = 0; t.launched = false; t.reboundT = 0;
+  SFX.thud(dmg > 12); dust(t.x, t.y, 12); shake(8);
+}
+function applyHit(a, t, o) {
+  if (t.invuln > 0 || t.state === 'down' && !o.ground) return false;
+  const fromSide = sign(a.x - t.x);
+  // ---- guard / counter
+  if (!o.unblockable && t.state === 'guard' && fromSide === t.face) {
+    if (G.frame - t.guardAt <= 10 && !o.sig) { counter(t, a); return true; }
+    t.sta -= o.heavy ? 24 : 9; const chip = o.dmg * .12; t.hp = Math.max(0, t.hp - chip);
+    t.vx = -t.face * (o.heavy ? 8 : 4); sparks(t.x + t.face * 40, t.y - 120, '#3bd8ff', 8, 7); SFX.block(); G.hitstop = 3;
+    if (t.sta <= 0) { t.sta = 0; t.setState('dizzy'); t.stunLen = 80; banner('GUARD BREAK!', '#3bd8ff', 72, 60, 420); hype(6); }
+    return true;
+  }
+  o.kb = o.kb || 0;
+  let d = o.dmg * a.dmgMul, name = o.name, heavy = o.heavy, kd = o.kd;
+  if (t.state === 'rebound' || t.state === 'whipped') { d *= 1.4; heavy = true; kd = true; name = o.reboundName || 'REBOUND ' + (o.name || 'HIT'); }
+  if (t.state === 'taunt') { d *= 1.25; name = 'CAUGHT SHOWBOATING!'; }
+  if (t.state === 'climb' || t.state === 'perch') { kd = true; heavy = true; name = 'KNOCKED OFF THE TOP!'; t.z = 0; }
+  t.hp = Math.max(0, t.hp - d); t.flash = 8; a.stats_dealt += d;
+  a.mom = Math.min(100, a.mom + d * 1.9 * a.momMul); t.mom = Math.max(0, t.mom - d * .5);
+  popup(t.x, t.y - 200, Math.round(d), heavy ? '#ffe14d' : '#fff');
+  sparks(t.x + fromSide * 20, t.y - 115, heavy ? '#ffe14d' : '#fff', heavy ? 16 : 9, heavy ? 12 : 8);
+  G.hitstop = heavy ? 8 : 4; shake(heavy ? 12 : 4); SFX.hit(heavy); hype(d * 1.2);
+  if (heavy) SFX.cheer(.6);
+  if (name) banner(name, o.sig ? '#ff3b5c' : '#ffe14d', o.sig ? 110 : 80, 60, o.sig ? 300 : 360);
+  if (kd || (t.hp <= 0 && heavy)) knockDown(t, a.x, d);
+  else {
+    t.setState('hurt'); t.stunLen = o.kb > 8 ? 30 : 14; t.vx = -fromSide * o.kb; t.vy = 0; t.launched = o.kb > 8;
+    t.faceTo(a);
+  }
+  return true;
+}
+function counter(def, att) {
+  att.setState('dizzy'); att.stunLen = 55; att.hp = Math.max(0, att.hp - 5 * def.dmgMul); att.flash = 10;
+  att.vx = sign(att.x - def.x) * 8; def.mom = Math.min(100, def.mom + 24 * def.momMul); def.sta -= 5;
+  def.setState('idle'); def.faceTo(att);
+  sparks(lerp(def.x, att.x, .5), def.y - 120, '#3bd8ff', 22, 14);
+  banner('COUNTER!', '#3bd8ff', 110, 60, 300); G.hitstop = 12; G.slow = 24; shake(8); SFX.counter(); hype(10); SFX.cheer(.7);
+}
+
+// ---------------------------------------------------------------------
+//  Fighter update (state machine)
+// ---------------------------------------------------------------------
+function startStrike(f, o, n) {
+  f.setState('strike'); f.combo = n; f.hitDone = false; f.queued = false; f.atkId = ++ATK_ID;
+  if (Math.abs(o.y - f.y) < 90) f.faceTo(o);
+  f.sta = Math.max(0, f.sta - 4); f.vx = f.face * (n === 2 ? 3 : 1.5); f.vy = 0;
+  f.dur = n === 2 ? 32 : 20; f.act = n === 2 ? [12, 15] : [7, 9];
+}
+function startLariat(f) {
+  f.setState('lariat'); f.hitDone = false; f.atkId = ++ATK_ID; f.sta = Math.max(0, f.sta - 8);
+  f.vx = f.face * Math.max(Math.abs(f.vx), f.walk * 2.2); f.vy *= .3;
+  f.sigMove = f.mom >= 100; f.fromRopes = f.reboundT > 0; f.reboundT = 0;
+}
+function free(f, I, o) {
+  const dx = o.x - f.x, adx = Math.abs(dx), ady = Math.abs(o.y - f.y);
+  // guard
+  if (I.guardH && f.sta > 3 && f.reboundT <= 0) {
+    f.setState('guard'); if (I.guardP) f.guardAt = G.frame; f.vx = f.vy = 0; if (ady < 160) f.faceTo(o); return;
+  }
+  if (I.strikeP) {
+    if (o.state === 'down' && adx < 140 && ady < 55) { f.setState('stomp'); f.hitDone = false; f.faceTo(o); f.vx = f.vy = 0; return; }
+    if (f.state === 'run' || f.reboundT > 0) { startLariat(f); return; }
+    startStrike(f, o, 0); return;
+  }
+  if (I.grabP) {
+    if (o.state === 'down' && adx < 150 && ady < 60) { startPin(f, o); return; }
+    if ((o.state === 'down' || o.state === 'getup') && nearCorner(f)) { startClimb(f, nearCorner(f)); return; }
+    f.setState('grab'); f.vx = f.vy = 0; if (ady < 100) f.faceTo(o); SFX.grab(); return;
+  }
+  if (I.tauntP) { f.setState('taunt'); f.vx = f.vy = 0; return; }
+  // movement
+  if (f.reboundT > 0) {
+    f.reboundT--; f.vx = f.rbDir * f.walk * 2.3; f.vy = I.my * f.walk * .5; f.face = f.rbDir; f.state = 'run';
+  } else {
+    let mx = I.mx, my = I.my; const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
+    const moving = l > .15, running = I.run && moving && f.sta > 2;
+    const spd = f.walk * (running ? 2.15 : 1) * (f.sta < 12 ? .75 : 1);
+    f.vx = mx * spd; f.vy = my * spd * .72;
+    if (running) f.sta = Math.max(0, f.sta - .22);
+    f.state = moving ? (running ? 'run' : 'walk') : 'idle';
+    if (Math.abs(mx) > .25) f.face = sign(mx); else if (!moving && ady < 200) f.faceTo(o);
+    f.dirRow = moving && Math.abs(mx) <= .25 ? (my < 0 ? 0 : 2) : null;
+  }
+  f.x += f.vx; f.y += f.vy;
+  const side = clampRing(f);
+  if (f.state === 'run' && (side === 'L' || side === 'R')) {
+    f.rbDir = side === 'L' ? 1 : -1; f.reboundT = 46; f.face = f.rbDir; ropeWobble(side, 14);
+    f.mom = Math.min(100, f.mom + 3 * f.momMul);
+  }
+}
+function updateFighter(f, I, o) {
+  f.animT++; f.t++;
+  if (f.invuln > 0) f.invuln--; if (f.flash > 0) f.flash--;
+  if (f.ghost > f.hp) f.ghost = Math.max(f.hp, f.ghost - .35); else f.ghost = f.hp;
+  if (FREE_STATES.has(f.state) && f.state !== 'run' || f.state === 'taunt') f.sta = Math.min(f.maxSta, f.sta + f.regen);
+  if (f.state === 'down' || f.state === 'dizzy') f.sta = Math.min(f.maxSta, f.sta + f.regen * .6);
+
+  switch (f.state) {
+    case 'idle': case 'walk': case 'run':
+      if (G.state !== 'fight') { f.vx = f.vy = 0; f.state = 'idle'; if (G.state === 'intro') f.faceTo(o); break; }
+      free(f, I, o); return;
+    case 'guard':
+      f.dirRow = null;
+      if (I.guardP) f.guardAt = G.frame;
+      if (!I.guardH || f.sta <= 0) f.setState('idle');
+      else { f.sta -= .1; if (Math.abs(o.y - f.y) < 160) f.faceTo(o); }
+      break;
+    case 'strike': {
+      f.vx *= .8;
+      if (!f.hitDone && f.t >= f.act[0] && f.t <= f.act[1]) {
+        const heavy = f.combo === 2;
+        if (inReach(f, o, heavy ? 135 : 120) && !['down', 'thrown', 'lockup', 'pinned', 'dive'].includes(o.state)) {
+          f.hitDone = applyHit(f, o, { dmg: [4, 5, 9][f.combo], kb: heavy ? 15 : 3, heavy, name: heavy ? 'HAYMAKER!' : null });
+          if (f.hitDone && f.combo > 0) popup(f.x, f.y - 230, (f.combo + 1) + ' HIT', '#3bd8ff');
         }
-        
-        window.addEventListener('resize', setupCanvas);
-        setupCanvas();
-        
-        // Sprite animation configuration
-        const ANIMATIONS = {
-            idle: { row: 2, frames: 1, speed: 20, startFrame: 0 }, // Default idle (facing camera)
-            idleLeft: { row: 1, frames: 1, speed: 20, startFrame: 0 }, // Row 2, first frame
-            idleRight: { row: 3, frames: 1, speed: 20, startFrame: 0 }, // Row 4, first frame
-            walkDown: { row: 2, frames: 3, speed: 12, startFrame: 0 }, // Row 3
-            walkLeft: { row: 1, frames: 3, speed: 12, startFrame: 0 }, // Row 2
-            walkRight: { row: 3, frames: 3, speed: 12, startFrame: 0 }, // Row 4
-            walkUp: { row: 0, frames: 3, speed: 12, startFrame: 0 }, // Row 1
-            runDown: { row: 2, frames: 3, speed: 6, startFrame: 0 }, // Use walk animation at 2x speed
-            runLeft: { row: 1, frames: 3, speed: 6, startFrame: 0 },
-            runRight: { row: 3, frames: 3, speed: 6, startFrame: 0 },
-            runUp: { row: 0, frames: 3, speed: 6, startFrame: 0 },
-            // Punch animations - only left and right using your sprite frames
-            punchLeft: { row: 1, frames: 6, speed: 4, startFrame: 0 }, // Row 2 from your punch sheet (0-indexed)
-            punchRight: { row: 3, frames: 6, speed: 4, startFrame: 0 } // Row 4 from your punch sheet (0-indexed)
-        };
-        
-        // Wrestler class
-        class Wrestler {
-            constructor(x, y, spriteSheet, runSpriteSheet, isPlayer = true) {
-                this.x = x;
-                this.y = y;
-                this.width = SPRITE_SIZE;
-                this.height = SPRITE_SIZE;
-                this.spriteSheet = spriteSheet;
-                this.runSpriteSheet = runSpriteSheet;
-                this.isPlayer = isPlayer;
-                this.currentAnimation = 'idle';
-                this.frameIndex = 0;
-                this.frameCounter = 0;
-                this.facing = 'down';
-                this.speed = isPlayer ? MOVEMENT_SPEED : AI_SPEED;
-                this.runSpeed = isPlayer ? MOVEMENT_SPEED * 3 : AI_SPEED * 1.5; // 3x speed for running!
-                this.vx = 0;
-                this.vy = 0;
-                this.isRunning = false;
-                
-                // Combat properties
-                this.health = 100;
-                this.maxHealth = 100;
-                this.isAttacking = false;
-                this.attackType = null;
-                this.attackCooldown = 0;
-                this.stunned = false;
-                this.stunTimer = 0;
-                this.hitFlash = 0;
-                this.knockbackX = 0;
-                this.knockbackY = 0;
-            }
-            
-            update() {
-                // Update timers
-                if (this.attackCooldown > 0) this.attackCooldown--;
-                if (this.stunTimer > 0) {
-                    this.stunTimer--;
-                    if (this.stunTimer <= 0) {
-                        this.stunned = false;
-                    }
-                }
-                if (this.hitFlash > 0) this.hitFlash--;
-                
-                // Apply knockback
-                if (this.knockbackX !== 0 || this.knockbackY !== 0) {
-                    this.x += this.knockbackX;
-                    this.y += this.knockbackY;
-                    this.knockbackX *= 0.8; // Decay knockback
-                    this.knockbackY *= 0.8;
-                    if (Math.abs(this.knockbackX) < 0.5) this.knockbackX = 0;
-                    if (Math.abs(this.knockbackY) < 0.5) this.knockbackY = 0;
-                }
-                
-                // Skip movement if stunned
-                if (this.stunned) {
-                    this.vx = 0;
-                    this.vy = 0;
-                } else {
-                    if (this.isPlayer) {
-                        this.handleInput();
-                    } else {
-                        this.followPlayer();
-                    }
-                }
-                
-                // Handle attack animation completion
-                if (this.isAttacking) {
-                    const anim = ANIMATIONS[this.currentAnimation];
-                    if (this.frameIndex >= anim.frames - 1 && this.frameCounter >= anim.speed - 1) {
-                        this.isAttacking = false;
-                        this.attackType = null;
-                        // Return to idle
-                        if (this.facing === 'left') {
-                            this.currentAnimation = 'idleLeft';
-                        } else if (this.facing === 'right') {
-                            this.currentAnimation = 'idleRight';
-                        } else {
-                            this.currentAnimation = 'idle';
-                        }
-                        this.frameIndex = 0;
-                    }
-                }
-                
-                let nextX = this.x + this.vx;
-                let nextY = this.y + this.vy;
-                
-                const frameWidth = this.spriteSheet ? this.spriteSheet.width / 9 : SPRITE_SIZE;
-                const frameHeight = this.spriteSheet ? this.spriteSheet.height / 4 : SPRITE_SIZE;
-                const spriteWidth = frameWidth * SCALE;
-                const spriteHeight = frameHeight * SCALE;
-                
-                const collisionPointY = nextY + (spriteHeight * 0.8);
-                
-                const yProgress = (collisionPointY - RING_BOUNDS.top) / (RING_BOUNDS.bottom - RING_BOUNDS.top);
-                const clampedProgress = Math.max(0, Math.min(1, yProgress));
-                
-                const currentLeftBound = RING_BOUNDS.topLeft + (RING_BOUNDS.bottomLeft - RING_BOUNDS.topLeft) * clampedProgress;
-                const currentRightBound = RING_BOUNDS.topRight + (RING_BOUNDS.bottomRight - RING_BOUNDS.topRight) * clampedProgress;
-                
-                const spriteCenterX = nextX + (spriteWidth * 0.5);
-                
-                if (spriteCenterX < currentLeftBound) {
-                    nextX = currentLeftBound - (spriteWidth * 0.5);
-                }
-                
-                if (spriteCenterX > currentRightBound) {
-                    nextX = currentRightBound - (spriteWidth * 0.5);
-                }
-                
-                if (collisionPointY < RING_BOUNDS.top) {
-                    nextY = RING_BOUNDS.top - (spriteHeight * 0.8);
-                }
-                if (collisionPointY > RING_BOUNDS.bottom) {
-                    nextY = RING_BOUNDS.bottom - (spriteHeight * 0.8);
-                }
-                
-                this.x = nextX;
-                this.y = nextY;
-                
-                // Update animation frame
-                if (!this.isAttacking || this.currentAnimation.includes('punch')) {
-                    this.frameCounter++;
-                    const anim = ANIMATIONS[this.currentAnimation];
-                    if (this.frameCounter >= anim.speed) {
-                        this.frameCounter = 0;
-                        if (this.isAttacking) {
-                            // For attack animations, don't loop
-                            if (this.frameIndex < anim.frames - 1) {
-                                this.frameIndex++;
-                            }
-                        } else {
-                            // For normal animations, loop
-                            this.frameIndex = (this.frameIndex + 1) % anim.frames;
-                        }
-                    }
-                }
-            }
-            
-            handleInput() {
-                this.vx = 0;
-                this.vy = 0;
-                let moving = false;
-                
-                // Don't move if attacking
-                if (this.isAttacking) return;
-                
-                // Check if running (spacebar held or touch running)
-                this.isRunning = keys[' '] || touches.running || false;
-                const currentSpeed = this.isRunning ? this.runSpeed : this.speed;
-                
-                // Attack inputs - only punch now, based on current facing direction
-                if (keys['p'] || keys['P']) {
-                    if (!this.isAttacking && this.attackCooldown <= 0) {
-                        this.performAttack('punch');
-                        return;
-                    }
-                }
-                
-                // Keyboard input
-                if (keys['ArrowUp'] || keys['w'] || keys['W']) {
-                    this.vy = -currentSpeed;
-                    this.currentAnimation = this.isRunning ? 'runUp' : 'walkUp';
-                    this.facing = 'up';
-                    moving = true;
-                }
-                if (keys['ArrowDown'] || keys['s'] || keys['S']) {
-                    this.vy = currentSpeed;
-                    this.currentAnimation = this.isRunning ? 'runDown' : 'walkDown';
-                    this.facing = 'down';
-                    moving = true;
-                }
-                if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
-                    this.vx = -currentSpeed;
-                    this.currentAnimation = this.isRunning ? 'runLeft' : 'walkLeft';
-                    this.facing = 'left';
-                    moving = true;
-                }
-                if (keys['ArrowRight'] || keys['d'] || keys['D']) {
-                    this.vx = currentSpeed;
-                    this.currentAnimation = this.isRunning ? 'runRight' : 'walkRight';
-                    this.facing = 'right';
-                    moving = true;
-                }
-                
-                if (touches.active) {
-                    const dx = touches.x - (this.x + this.width * SCALE / 2);
-                    const dy = touches.y - (this.y + this.height * SCALE / 2);
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance > 20) {
-                        this.vx = (dx / distance) * currentSpeed;
-                        this.vy = (dy / distance) * currentSpeed;
-                        
-                        if (Math.abs(dx) > Math.abs(dy)) {
-                            this.currentAnimation = dx > 0 ? 
-                                (this.isRunning ? 'runRight' : 'walkRight') : 
-                                (this.isRunning ? 'runLeft' : 'walkLeft');
-                            this.facing = dx > 0 ? 'right' : 'left';
-                        } else {
-                            this.currentAnimation = dy > 0 ? 
-                                (this.isRunning ? 'runDown' : 'walkDown') : 
-                                (this.isRunning ? 'runUp' : 'walkUp');
-                            this.facing = dy > 0 ? 'down' : 'up';
-                        }
-                        moving = true;
-                    }
-                }
-                
-                if (this.vx !== 0 && this.vy !== 0) {
-                    this.vx *= 0.707;
-                    this.vy *= 0.707;
-                }
-                
-                if (!moving) {
-                    // Set idle animation based on last facing direction
-                    if (this.facing === 'left') {
-                        this.currentAnimation = 'idleLeft';
-                    } else if (this.facing === 'right') {
-                        this.currentAnimation = 'idleRight';
-                    } else {
-                        // For up/down, use the last horizontal direction or default
-                        this.currentAnimation = 'idle';
-                    }
-                    this.frameIndex = 0;
-                }
-            }
-            
-            followPlayer() {
-                const dx = player.x - this.x;
-                const dy = player.y - this.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                this.vx = 0;
-                this.vy = 0;
-                
-                // CPU no longer attacks - just follows and faces player
-                if (distance > AI_FOLLOW_DISTANCE) {
-                    const dirX = dx / distance;
-                    const dirY = dy / distance;
-                    
-                    this.vx = dirX * this.speed;
-                    this.vy = dirY * this.speed;
-                    
-                    if (Math.abs(dirX) > Math.abs(dirY)) {
-                        if (dirX > 0) {
-                            this.currentAnimation = 'walkRight';
-                            this.facing = 'right';
-                        } else {
-                            this.currentAnimation = 'walkLeft';
-                            this.facing = 'left';
-                        }
-                    } else {
-                        if (dirY > 0) {
-                            this.currentAnimation = 'walkDown';
-                            this.facing = 'down';
-                        } else {
-                            this.currentAnimation = 'walkUp';
-                            this.facing = 'up';
-                        }
-                    }
-                } else if (!this.isAttacking) {
-                    // Face the player when close
-                    if (Math.abs(dx) > Math.abs(dy)) {
-                        this.facing = dx > 0 ? 'right' : 'left';
-                        this.currentAnimation = this.facing === 'right' ? 'idleRight' : 'idleLeft';
-                    } else {
-                        this.facing = dy > 0 ? 'down' : 'up';
-                        this.currentAnimation = 'idle';
-                    }
-                    this.frameIndex = 0;
-                }
-            }
-            
-            performAttack(attackType) {
-                console.log(`Starting attack: ${attackType}`);
-                this.isAttacking = true;
-                this.attackType = attackType;
-                this.attackCooldown = 30; // 30 frames cooldown
-                this.frameIndex = 0;
-                this.frameCounter = 0;
-                
-                // Use current facing direction for punch animation
-                if (this.facing === 'left') {
-                    this.currentAnimation = 'punchLeft';
-                } else if (this.facing === 'right') {
-                    this.currentAnimation = 'punchRight';
-                } else {
-                    // If facing up/down, default to facing the opponent
-                    if (this.isPlayer) {
-                        const dx = opponent.x - this.x;
-                        if (dx > 0) {
-                            this.facing = 'right';
-                            this.currentAnimation = 'punchRight';
-                        } else {
-                            this.facing = 'left';
-                            this.currentAnimation = 'punchLeft';
-                        }
-                    } else {
-                        const dx = player.x - this.x;
-                        if (dx > 0) {
-                            this.facing = 'right';
-                            this.currentAnimation = 'punchRight';
-                        } else {
-                            this.facing = 'left';
-                            this.currentAnimation = 'punchLeft';
-                        }
-                    }
-                }
-                
-                console.log(`Punch animation set to: ${this.currentAnimation}, facing: ${this.facing}`);
-                
-                // Check for hit and play appropriate sound
-                const hitTarget = this.checkAttackHit(this.isPlayer ? opponent : player);
-                
-                if (this.isPlayer) {
-                    if (hitTarget) {
-                        // Play punch impact sound on successful hit
-                        if (punchSound) {
-                            try {
-                                punchSound.currentTime = 0; // Reset to start
-                                punchSound.play();
-                            } catch (err) {
-                                console.log('Could not play punch sound:', err);
-                            }
-                        }
-                    } else {
-                        // Play miss sound when punch doesn't connect
-                        if (missSound) {
-                            try {
-                                missSound.currentTime = 0; // Reset to start
-                                missSound.play();
-                            } catch (err) {
-                                console.log('Could not play miss sound:', err);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            checkAttackHit(target) {
-                if (!this.isAttacking || !target) return;
-                
-                const myCenter = {
-                    x: this.x + (this.width * SCALE / 2),
-                    y: this.y + (this.height * SCALE / 2)
-                };
-                
-                const targetCenter = {
-                    x: target.x + (target.width * SCALE / 2),
-                    y: target.y + (target.height * SCALE / 2)
-                };
-                
-                const distance = Math.sqrt(
-                    Math.pow(myCenter.x - targetCenter.x, 2) + 
-                    Math.pow(myCenter.y - targetCenter.y, 2)
-                );
-                
-                // Attack range check - decreased by 50% from 120 to 60
-                const attackRange = 85;
-                
-                console.log(`Attack attempt: Distance=${Math.floor(distance)}, Range=${attackRange}, Facing=${this.facing}`);
-                
-                if (distance <= attackRange) {
-                    // Check if attack is in the right direction
-                    const dx = targetCenter.x - myCenter.x;
-                    const dy = targetCenter.y - myCenter.y;
-                    
-                    let hitDirection = false;
-                    switch(this.facing) {
-                        case 'up':
-                            hitDirection = dy < 0;
-                            break;
-                        case 'down':
-                            hitDirection = dy > 0;
-                            break;
-                        case 'left':
-                            hitDirection = dx < 0;
-                            break;
-                        case 'right':
-                            hitDirection = dx > 0;
-                            break;
-                    }
-                    
-                    console.log(`Direction check: dx=${Math.floor(dx)}, dy=${Math.floor(dy)}, hitDirection=${hitDirection}`);
-                    
-                    if (hitDirection) {
-                        this.dealDamage(target);
-                        return true;
-                    }
-                }
-                return false;
-            }
-            
-            dealDamage(target) {
-                const damage = 10; // Punch damage
-                const oldHealth = target.health;
-                target.health = Math.max(0, target.health - damage);
-                target.hitFlash = 10; // Flash white for 10 frames
-                target.stunned = true;
-                target.stunTimer = 15; // Stunned for 15 frames
-                
-                // Apply knockback
-                const knockbackForce = 8;
-                const dx = target.x - this.x;
-                const dy = target.y - this.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance > 0) {
-                    target.knockbackX = (dx / distance) * knockbackForce;
-                    target.knockbackY = (dy / distance) * knockbackForce;
-                }
-                
-                console.log(`HIT! ${this.isPlayer ? 'Player' : 'CPU'} punch for ${damage} damage! Health: ${oldHealth} -> ${target.health}`);
-                
-                // Check for knockout
-                if (target.health <= 0) {
-                    console.log(`${target.isPlayer ? 'Player' : 'CPU'} is knocked out!`);
-                }
-            }
-            
-            draw() {
-                if (!this.spriteSheet) return;
-                
-                const anim = ANIMATIONS[this.currentAnimation];
-                
-                // Debug logging for punch animations
-                if (this.currentAnimation.includes('punch')) {
-                    console.log(`Drawing punch: ${this.currentAnimation}, frame: ${this.frameIndex}, isPlayer: ${this.isPlayer}`);
-                }
-                
-                // Use punch spritesheet for punch animations, regular for everything else
-                let currentSpriteSheet = this.spriteSheet;
-                let frameWidth = currentSpriteSheet.width / 9; // Default for regular sprites (9 frames)
-                
-                if (this.currentAnimation === 'punchLeft' || this.currentAnimation === 'punchRight') {
-                    // Try to use punch spritesheet if available
-                    if (this.isPlayer && images.playerPunch) {
-                        currentSpriteSheet = images.playerPunch;
-                        frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
-                        console.log('Using player punch spritesheet');
-                    } else if (!this.isPlayer && images.opponentPunch) {
-                        currentSpriteSheet = images.opponentPunch;
-                        frameWidth = currentSpriteSheet.width / 6; // 6 frames for punch sprites
-                        console.log('Using opponent punch spritesheet');
-                    } else {
-                        // Fallback to regular spritesheet
-                        console.log('Punch spritesheet not found, using regular spritesheet');
-                        frameWidth = currentSpriteSheet.width / 9;
-                    }
-                }
-                
-                const frameHeight = currentSpriteSheet.height / 4;
-                
-                // Calculate source position with reversed animation
-                let sourceX;
-                if (this.currentAnimation.includes('idle')) {
-                    sourceX = 0; // First sprite in the row
-                } else if (this.currentAnimation.includes('punch')) {
-                    // Reverse the punch animation by flipping frame order
-                    const reversedFrame = (anim.frames - 1) - this.frameIndex;
-                    sourceX = reversedFrame * frameWidth;
-                } else {
-                    // For all other animations
-                    sourceX = this.frameIndex * frameWidth;
-                }
-                
-                const sourceY = anim.row * frameHeight;
-                
-                // Debug logging for punch frame calculation
-                if (this.currentAnimation.includes('punch')) {
-                    console.log(`Punch frame calc: frame=${this.frameIndex}, reversedFrame=${(anim.frames - 1) - this.frameIndex}, sourceX=${sourceX}, sourceY=${sourceY}`);
-                }
-                
-                // Apply hit flash effect
-                if (this.hitFlash > 0) {
-                    ctx.save();
-                    ctx.globalCompositeOperation = 'screen';
-                    ctx.fillStyle = 'white';
-                    ctx.globalAlpha = 0.7;
-                }
-                
-                ctx.drawImage(
-                    currentSpriteSheet,
-                    sourceX, sourceY,
-                    frameWidth, frameHeight,
-                    Math.floor(this.x), Math.floor(this.y),
-                    frameWidth * SCALE, frameHeight * SCALE
-                );
-                
-                if (this.hitFlash > 0) {
-                    ctx.restore();
-                }
-                
-                // Draw health bar above wrestler
-                this.drawHealthBar();
-            }
-            
-            drawHealthBar() {
-                const barWidth = 60;
-                const barHeight = 6;
-                const barX = this.x + (this.width * SCALE / 2) - (barWidth / 2);
-                const barY = this.y - 15;
-                
-                // Background
-                ctx.fillStyle = '#ff0000';
-                ctx.fillRect(barX, barY, barWidth, barHeight);
-                
-                // Health
-                const healthPercent = this.health / this.maxHealth;
-                ctx.fillStyle = '#00ff00';
-                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
-                
-                // Border
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(barX, barY, barWidth, barHeight);
-            }
-        }
-        
-        // Game objects
-        let player, opponent;
-        
-        // Load game assets
-        async function loadGameAssets() {
-            document.getElementById('loadingMessage').style.display = 'block';
-            
-            return new Promise((resolve) => {
-                let loadedCount = 0;
-                const totalAssets = 10; // Updated count for miss sound
-                
-                const checkAllLoaded = () => {
-                    loadedCount++;
-                    if (loadedCount === totalAssets) {
-                        document.getElementById('loadingMessage').style.display = 'none';
-                        resolve();
-                    }
-                };
-                
-                // Load music
-                gameMusic = new Audio('game_music.mp4');
-                gameMusic.loop = true;
-                gameMusic.volume = 0.5;
-                gameMusic.addEventListener('canplaythrough', () => {
-                    console.log('Music loaded successfully');
-                    checkAllLoaded();
-                }, { once: true });
-                gameMusic.addEventListener('error', () => {
-                    console.error('Failed to load game_music.mp4');
-                    gameMusic = null;
-                    checkAllLoaded();
-                });
-                
-                // Try to load the music
-                gameMusic.load();
-                
-                // Load punch sound
-                punchSound = new Audio('punch.mp3');
-                punchSound.volume = 0.7;
-                punchSound.addEventListener('canplaythrough', () => {
-                    console.log('Punch sound loaded successfully');
-                    checkAllLoaded();
-                }, { once: true });
-                punchSound.addEventListener('error', () => {
-                    console.error('Failed to load punch.mp3');
-                    punchSound = null;
-                    checkAllLoaded();
-                });
-                
-                // Try to load the punch sound
-                punchSound.load();
-                
-                // Load miss sound
-                missSound = new Audio('miss.mp3');
-                missSound.volume = 0.5;
-                missSound.addEventListener('canplaythrough', () => {
-                    console.log('Miss sound loaded successfully');
-                    checkAllLoaded();
-                }, { once: true });
-                missSound.addEventListener('error', () => {
-                    console.error('Failed to load miss.mp3');
-                    missSound = null;
-                    checkAllLoaded();
-                });
-                
-                // Try to load the miss sound
-                missSound.load();
-                
-                // Load ring
-                const ringImg = new Image();
-                ringImg.src = 'ring.png';
-                ringImg.onload = () => {
-                    images.ring = ringImg;
-                    checkAllLoaded();
-                };
-                ringImg.onerror = () => {
-                    console.error('Failed to load ring.png');
-                    checkAllLoaded();
-                };
-                
-                // Load player sprite
-                const playerImg = new Image();
-                playerImg.src = 'player_spritesheet.png';
-                playerImg.onload = () => {
-                    images.player = playerImg;
-                    checkAllLoaded();
-                };
-                playerImg.onerror = () => {
-                    console.error('Failed to load player_spritesheet.png');
-                    checkAllLoaded();
-                };
-                
-                // Load player punch sprite
-                const playerPunchImg = new Image();
-                playerPunchImg.src = 'player_punch_spritesheet.png';
-                playerPunchImg.onload = () => {
-                    images.playerPunch = playerPunchImg;
-                    console.log('Player punch sprite loaded successfully:', playerPunchImg.width, 'x', playerPunchImg.height);
-                    checkAllLoaded();
-                };
-                playerPunchImg.onerror = () => {
-                    console.log('Could not load player_punch_spritesheet.png - using regular sprites');
-                    images.playerPunch = null;
-                    checkAllLoaded();
-                };
-                
-                // Load player run sprite
-                const playerRunImg = new Image();
-                playerRunImg.src = 'player_run_spritesheet.png';
-                playerRunImg.onload = () => {
-                    images.playerRun = playerRunImg;
-                    console.log('Player run sprite loaded successfully');
-                    checkAllLoaded();
-                };
-                playerRunImg.onerror = () => {
-                    console.log('Could not load player_run_spritesheet.png - using walk sprites for running');
-                    images.playerRun = null;
-                    checkAllLoaded();
-                };
-                
-                // Load opponent sprite
-                const opponentImg = new Image();
-                opponentImg.src = 'opponent_spritesheet.png';
-                opponentImg.onload = () => {
-                    images.opponent = opponentImg;
-                    checkAllLoaded();
-                };
-                opponentImg.onerror = () => {
-                    console.error('Failed to load opponent_spritesheet.png');
-                    checkAllLoaded();
-                };
-                
-                // Load opponent punch sprite
-                const opponentPunchImg = new Image();
-                opponentPunchImg.src = 'opponent_punch_spritesheet.png';
-                opponentPunchImg.onload = () => {
-                    images.opponentPunch = opponentPunchImg;
-                    console.log('Opponent punch sprite loaded successfully:', opponentPunchImg.width, 'x', opponentPunchImg.height);
-                    checkAllLoaded();
-                };
-                opponentPunchImg.onerror = () => {
-                    console.log('Could not load opponent_punch_spritesheet.png - using regular sprites');
-                    images.opponentPunch = null;
-                    checkAllLoaded();
-                };
-                
-                // Load opponent run sprite
-                const opponentRunImg = new Image();
-                opponentRunImg.src = 'opponent_run_spritesheet.png';
-                opponentRunImg.onload = () => {
-                    images.opponentRun = opponentRunImg;
-                    console.log('Opponent run sprite loaded successfully');
-                    checkAllLoaded();
-                };
-                opponentRunImg.onerror = () => {
-                    console.log('Could not load opponent_run_spritesheet.png - using walk sprites for running');
-                    images.opponentRun = null;
-                    checkAllLoaded();
-                };
-            });
-        }
-        
-        // Start game
-        async function startGame() {
-            // Hide splash screen
-            document.getElementById('splashScreen').style.display = 'none';
-            
-            // Show mute button - make sure it's visible!
-            const muteBtn = document.getElementById('muteButton');
-            if (muteBtn) {
-                muteBtn.style.display = 'block';
-                console.log('Mute button shown');
-            }
-            
-            // Load assets
-            await loadGameAssets();
-            
-            // Try to start music
-            if (gameMusic) {
-                try {
-                    await gameMusic.play();
-                    musicPlaying = true;
-                    console.log('Music started');
-                } catch (err) {
-                    console.log('Music autoplay prevented:', err);
-                    // Set up to play on first interaction
-                    musicPlaying = false;
-                }
-            }
-            
-            // Initialize game objects
-            const centerX = (RING_BOUNDS.topLeft + RING_BOUNDS.topRight) / 2;
-            const centerY = (RING_BOUNDS.top + RING_BOUNDS.bottom) / 2;
-            
-            player = new Wrestler(centerX - 100, centerY, images.player, images.playerRun, true);
-            opponent = new Wrestler(centerX + 100, centerY, images.opponent, images.opponentRun, false);
-            
-            gameRunning = true;
-            gameLoop();
-        }
-        
-        // Game loop
-        function gameLoop() {
-            if (!gameRunning) return;
-            
-            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            
-            // Draw ring background
-            if (images.ring) {
-                ctx.drawImage(images.ring, 0, 0, GAME_WIDTH, GAME_HEIGHT);
-            }
-            
-            // Update wrestlers
-            player.update();
-            opponent.update();
-            
-            // Sort by Y position for proper layering
-            const wrestlers = [player, opponent].sort((a, b) => a.y - b.y);
-            wrestlers.forEach(wrestler => wrestler.draw());
-            
-            // Draw HUD
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 32px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('PLAYER 1', 20, 50);
-            ctx.textAlign = 'right';
-            ctx.fillText('CPU', GAME_WIDTH - 20, 50);
-            
-            // Health bars background
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(20, 60, 300, 20);
-            ctx.fillRect(GAME_WIDTH - 320, 60, 300, 20);
-            
-            // Actual health bars
-            ctx.fillStyle = '#00ff00';
-            const playerHealthPercent = player.health / player.maxHealth;
-            const opponentHealthPercent = opponent.health / opponent.maxHealth;
-            ctx.fillRect(20, 60, 300 * playerHealthPercent, 20);
-            ctx.fillRect(GAME_WIDTH - 320, 60, 300 * opponentHealthPercent, 20);
-            
-            // Health bar borders
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(20, 60, 300, 20);
-            ctx.strokeRect(GAME_WIDTH - 320, 60, 300, 20);
-            
-            // Show controls
-            ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('P = Punch, Space = Run', GAME_WIDTH / 2, GAME_HEIGHT - 20);
-            
-            requestAnimationFrame(gameLoop);
-        }
-        
-        // Handle touch/click on start button
-        document.getElementById('startButton').addEventListener('click', startGame);
-        document.getElementById('splashScreen').addEventListener('click', (e) => {
-            // Check if click is in the general area of the start button
-            const rect = e.currentTarget.getBoundingClientRect();
-            const y = e.clientY - rect.top;
-            const relativeY = y / rect.height;
-            
-            // If clicked in bottom 40% of screen (where button likely is)
-            if (relativeY > 0.6 && relativeY < 0.8) {
-                startGame();
-            }
-        });
-        
-        // Input handling
-        window.addEventListener('keydown', (e) => {
-            keys[e.key] = true;
-            
-            // Toggle music with M key
-            if ((e.key === 'm' || e.key === 'M') && gameRunning) {
-                if (gameMusic) {
-                    if (musicPlaying) {
-                        gameMusic.pause();
-                        musicPlaying = false;
-                        console.log('Music paused');
-                    } else {
-                        gameMusic.play().then(() => {
-                            musicPlaying = true;
-                            console.log('Music resumed');
-                        }).catch(err => {
-                            console.error('Could not play music:', err);
-                        });
-                    }
-                }
-            }
-            
-            // Try to start music on first interaction if it hasn't started
-            if (gameMusic && !musicPlaying && gameRunning) {
-                gameMusic.play().then(() => {
-                    musicPlaying = true;
-                    console.log('Music started on key press');
-                }).catch(() => {});
-            }
-            
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'p', 'P'].includes(e.key)) {
-                e.preventDefault();
-            }
-        });
-        
-        window.addEventListener('keyup', (e) => {
-            keys[e.key] = false;
-        });
-        
-        // Touch controls
-        function getCanvasCoordinates(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            const x = (clientX - rect.left) / actualScale;
-            const y = (clientY - rect.top) / actualScale;
-            
-            return { x, y };
-        }
-        
-        canvas.addEventListener('touchstart', (e) => {
-            if (gameRunning) {
-                const coords = getCanvasCoordinates(e);
-                const currentTime = Date.now();
-                
-                // Check for double-tap
-                if (currentTime - lastTapTime < doubleTapDelay) {
-                    // Double tap detected - enable running
-                    touches.running = true;
-                    // Clear the running state after a short time
-                    setTimeout(() => {
-                        touches.running = false;
-                    }, 2000); // Run for 2 seconds after double-tap
-                }
-                lastTapTime = currentTime;
-                
-                touches.active = true;
-                touches.x = coords.x;
-                touches.y = coords.y;
-                e.preventDefault();
-            }
-        });
-        
-        canvas.addEventListener('touchmove', (e) => {
-            if (gameRunning) {
-                const coords = getCanvasCoordinates(e);
-                touches.x = coords.x;
-                touches.y = coords.y;
-                e.preventDefault();
-            }
-        });
-        
-        canvas.addEventListener('touchend', (e) => {
-            touches.active = false;
-            // Don't immediately clear running on touch end, let the timeout handle it
-        });
-        
-        // Mute button handler
-        document.getElementById('muteButton').addEventListener('click', () => {
-            if (gameMusic) {
-                if (musicPlaying) {
-                    gameMusic.pause();
-                    musicPlaying = false;
-                    document.getElementById('muteButton').textContent = '🔇';
-                } else {
-                    gameMusic.play().then(() => {
-                        musicPlaying = true;
-                        document.getElementById('muteButton').textContent = '🔊';
-                    }).catch(err => {
-                        console.error('Could not play music:', err);
-                    });
-                }
-            }
-        });
-        
-        // Prevent zooming on mobile
-        document.addEventListener('gesturestart', (e) => e.preventDefault());
-        document.addEventListener('gesturechange', (e) => e.preventDefault());
-        document.addEventListener('gestureend', (e) => e.preventDefault());
-    </script>
+      }
+      if (f.t === f.act[1] + 1 && !f.hitDone) SFX.miss();
+      if (I.strikeP && f.t > 6 && f.combo < 2) f.queued = true;
+      if (f.t >= f.dur) { if (f.queued && f.hitDone) startStrike(f, o, f.combo + 1); else f.setState('idle'); }
+      break;
+    }
+    case 'lariat': {
+      if (f.t > 16) f.vx *= .86;
+      if (!f.hitDone && f.t >= 2 && f.t <= 18 && inReach(f, o, 120, 50) && !['down', 'thrown', 'lockup', 'pinned', 'dive'].includes(o.state)) {
+        const sig = f.sigMove;
+        f.hitDone = applyHit(f, o, { dmg: sig ? 24 : (f.fromRopes ? 13 : 10), kd: true, heavy: true, sig,
+          name: sig ? f.sig + '!' : (f.fromRopes ? 'ROPE-RUN LARIAT!' : 'RUNNING LARIAT!'), reboundName: sig ? f.sig + '!' : 'REBOUND LARIAT!' });
+        if (sig && f.hitDone) { f.mom = 0; G.slow = 40; G.whiteout = 10; SFX.cheer(1); }
+        if (f.hitDone) f.vx *= .3;
+      }
+      if (f.t === 19 && !f.hitDone) SFX.miss();
+      if (f.t >= 30) f.setState('idle');
+      break;
+    }
+    case 'stomp':
+      if (f.t === 10 && o.state === 'down' && inReach(f, o, 150, 60)) {
+        const keepT = o.t, keepLen = o.downLen;
+        applyHit(f, o, { dmg: 4, ground: true, unblockable: true, kb: 0, kd: false, name: null });
+        o.state = 'down'; o.t = keepT; o.downLen = keepLen + 14; o.vx = 0; shake(5);
+      } else if (f.t === 10) SFX.miss();
+      if (f.t >= 22) f.setState('idle');
+      break;
+    case 'grab':
+      if (f.t === 6) {
+        if (GRABBABLE.has(o.state) && inReach(f, o, 120, 42)) startLock(f, o);
+        else { f.setState('grabmiss'); SFX.miss(); }
+      }
+      break;
+    case 'grabmiss': if (f.t >= 18) f.setState('idle'); break;
+    case 'taunt':
+      f.mom = Math.min(100, f.mom + .42 * f.momMul); hype(.25);
+      if (f.t === 1) { SFX.cheer(.5); popup(f.x, f.y - 230, 'HYPE!', '#c878ff'); }
+      if (f.t >= 64) f.setState('idle');
+      break;
+    case 'hurt': case 'rebound': case 'whipped': {
+      f.vx *= f.state === 'hurt' ? .88 : .985; f.vy *= .8;
+      if (f.state === 'whipped' && Math.abs(f.vx) < 15 && !f.bounced) f.vx = sign(f.vx) * 15;
+      f.x += f.vx; f.y += f.vy; const side = clampRing(f);
+      if ((side === 'L' || side === 'R') && ((f.launched && Math.abs(f.vx) > 6) || (f.state === 'whipped' && !f.bounced))) {
+        f.vx = clamp(-f.vx * 1.2, -18, 18); f.face = sign(f.vx); f.launched = false; f.bounced = true;
+        if (f.state === 'hurt') { f.setState('rebound'); banner('OFF THE ROPES!', '#fff', 56, 45, 430); }
+        else f.t = 0;
+        ropeWobble(side, 18); shake(4);
+      }
+      if (f.state === 'hurt' && f.t >= f.stunLen) { f.setState('idle'); f.launched = false; }
+      if (f.state === 'rebound' && f.t >= 38) f.setState('dizzy'), f.stunLen = 20;
+      if (f.state === 'whipped' && f.bounced && f.t >= 46) { f.setState('dizzy'); f.stunLen = 18; }
+      if (f.state === 'whipped' && !f.bounced && f.t > 90) f.setState('idle');
+      return;
+    }
+    case 'dizzy':
+      f.vx *= .85; f.x += f.vx; clampRing(f);
+      if (I.mashP) f.t += 4;
+      if (f.t >= f.stunLen) f.setState('idle');
+      return;
+    case 'down':
+      f.vx *= .85; f.x += f.vx; clampRing(f);
+      if (I.mashP && G.state === 'fight') f.t += 5;
+      if (f.t >= f.downLen && G.state === 'fight') f.setState('getup');
+      return;
+    case 'getup':
+      if (f.t >= 22) { f.setState('idle'); f.invuln = 40; }
+      return;
+    case 'climb': {
+      const c = f.corner, p = Math.min(1, f.t / 34);
+      f.x = lerp(f.cx0, c.x, p); f.y = lerp(f.cy0, c.y, p); f.z = c.z * ease(p);
+      if (p >= 1) { f.setState('perch'); }
+      return;
+    }
+    case 'perch':
+      f.faceTo(o); f.z = f.corner.z;
+      if ((I.strikeP || I.grabP) && f.t > 6 || f.t > 70) startDive(f, o);
+      return;
+    case 'dive': updateDive(f, o); return;
+    case 'victory': f.faceTo(o); return;
+  }
+  // generic motion for remaining states
+  if (!['lockup', 'throw', 'thrown', 'pinning', 'pinned'].includes(f.state)) { f.x += f.vx; f.y += f.vy; clampRing(f); }
+}
+
+// ---------------------------------------------------------------------
+//  Grapple · throws · whips
+// ---------------------------------------------------------------------
+function startLock(a, b) {
+  const my = (a.y + b.y) / 2, mx = clamp((a.x + b.x) / 2, xBounds(my)[0] + 60, xBounds(my)[1] - 60);
+  const s = sign(b.x - a.x) || a.face;
+  a.x = mx - s * 56; b.x = mx + s * 56; a.y = b.y = my; a.face = s; b.face = -s;
+  a.setState('lockup'); b.setState('lockup'); a.vx = a.vy = b.vx = b.vy = 0;
+  G.lock = { a, b, t: 0, m: 18 }; SFX.grab(); shake(3);
+  if (b.ai) b.mem.throwDir = null; if (a.ai) a.mem.throwDir = null;
+}
+function updateLock(I) {
+  const L = G.lock, ia = I[G.f.indexOf(L.a)], ib = I[G.f.indexOf(L.b)];
+  L.t++;
+  if (ia.mashP) L.m += 7.5 * L.a.grip; if (ib.mashP) L.m -= 7.5 * L.b.grip;
+  L.m += (L.a.grip - L.b.grip) * .12;
+  L.a.sta = Math.max(0, L.a.sta - .07); L.b.sta = Math.max(0, L.b.sta - .07);
+  if (L.m >= 100) return lockWin(L.a, L.b, ia);
+  if (L.m <= -100) return lockWin(L.b, L.a, ib);
+  if (L.t >= 240) {
+    G.lock = null; banner('BREAK!', '#fff', 64, 40, 420);
+    for (const f of [L.a, L.b]) { f.setState('hurt'); f.stunLen = 12; f.vx = -f.face * 7; f.launched = false; }
+  }
+}
+function lockWin(w, l, I) {
+  G.lock = null; w.faceTo(l);
+  const toward = I.mx * w.face;
+  let type;
+  if (I.run) type = 'whip';
+  else if (w.mom >= 100) type = 'sig';
+  else if (toward > .3) type = 'slam';
+  else if (toward < -.3) type = 'suplex';
+  else type = 'hiptoss';
+  if (type === 'suplex' && w.sta < 8) type = 'slam';
+  w.mom = Math.min(100, w.mom + 6 * w.momMul);
+  if (type === 'whip') {
+    w.setState('idle'); l.setState('whipped'); l.face = w.face; l.vx = w.face * 15; l.vy = 0; l.bounced = false;
+    banner('IRISH WHIP!', '#fff', 64, 45, 420); SFX.grab(); return;
+  }
+  startThrow(w, l, type);
+}
+const THROWS = {
+  hiptoss: { dur: 30, dist: 150, h: 120, spin: 1.0, dmg: 7, name: 'HIP TOSS' },
+  slam:    { dur: 42, dist: 115, h: 175, spin: 1.0, dmg: 10, name: 'BODY SLAM!' },
+  suplex:  { dur: 46, dist: -125, h: 165, spin: 1.0, dmg: 13, name: 'SUPLEX!' },
+  sig:     { dur: 74, dist: 105, h: 300, spin: 2.5, dmg: 26, name: null },
+};
+function startThrow(w, l, type) {
+  const T = THROWS[type];
+  w.setState('throw'); l.setState('thrown'); w.vx = w.vy = l.vx = l.vy = 0;
+  if (type === 'suplex') w.sta -= 8;
+  const ex = w.x + w.face * T.dist;
+  G.thr = { w, l, type, T, sx: l.x, ex, y: l.y };
+  if (type === 'sig') { banner(w.sig + '!', '#ff3b5c', 120, 90, 300); G.slow = 70; w.mom = 0; SFX.cheer(1); hype(25); }
+}
+function updateThrow() {
+  const R = G.thr, { w, l, T } = R, p = Math.min(1, l.t / T.dur);
+  let xp;
+  if (R.type === 'slam' || R.type === 'sig') {
+    // lift over the head, then drive down in front
+    const lift = .55;
+    if (p < lift) { const q = ease(p / lift); xp = lerp(0, .15, q); l.z = T.h * q; }
+    else { const q = (p - lift) / (1 - lift); xp = lerp(.15, 1, q); l.z = T.h * (1 - q * q); }
+  } else { xp = ease(p); l.z = T.h * Math.sin(Math.PI * p); }
+  l.x = lerp(R.sx, R.ex, xp); l.y = R.y;
+  l.rot = -w.face * T.spin * Math.PI * p * (R.type === 'suplex' ? -1 : 1);
+  if (p >= 1) {
+    G.thr = null; l.z = 0; l.rot = 0; clampRing(l);
+    const d = T.dmg * w.dmgMul; l.hp = Math.max(0, l.hp - d); l.flash = 10;
+    w.mom = Math.min(100, w.mom + d * 1.7 * w.momMul); l.mom = Math.max(0, l.mom - d * .5); w.stats_dealt += d;
+    popup(l.x, l.y - 160, Math.round(d), '#ffe14d');
+    if (T.name) banner(T.name, '#ffe14d', 84, 60, 360);
+    knockDown(l, w.x, d, R.type === 'sig' ? 60 : 0);
+    l.vx = 0; dust(l.x, l.y, R.type === 'sig' ? 34 : 20); shake(R.type === 'sig' ? 26 : 16); G.hitstop = 7; SFX.thud(true); hype(d * 1.5); SFX.cheer(.6 + d / 40);
+    if (R.type === 'sig') G.whiteout = 12;
+    if (R.type === 'suplex') { w.setState('getup'); } else w.setState('idle');
+  }
+}
+
+// ---------------------------------------------------------------------
+//  Pinfall
+// ---------------------------------------------------------------------
+function startPin(f, o) {
+  f.setState('pinning'); o.setState('pinned'); f.x = o.x; f.y = o.y; f.vx = f.vy = o.vx = o.vy = 0;
+  const need = o.hp <= 0 ? 1e9 : 4 + Math.pow(1 - o.hp / o.maxHp, 1.2) * 34;
+  G.pin = { a: f, v: o, t: 0, count: 0, kick: 0, need };
+  banner('COVER!', '#fff', 64, 40, 420);
+}
+function updatePin(I) {
+  const P = G.pin, iv = I[G.f.indexOf(P.v)];
+  P.t++;
+  if (iv.mashP && P.t > 12) { P.kick++; P.v.flash = 3; }
+  if (P.kick >= P.need) {
+    G.pin = null; banner('KICK OUT!', '#3bd8ff', 100, 55, 300); hype(14); SFX.cheer(.8);
+    P.a.setState('hurt'); P.a.stunLen = 22; P.a.vx = -P.a.face * 7 || 7; P.a.launched = false;
+    P.v.setState('getup'); P.v.invuln = 50; shake(6); return;
+  }
+  const marks = [34, 86, 138];
+  const i = marks.indexOf(P.t);
+  if (i >= 0) {
+    P.count = i + 1; SFX.count(P.count); banner(String(P.count), P.count === 3 ? '#ff3b5c' : '#fff', 180, 45, 300); shake(4);
+    if (P.count === 3) { G.pin = null; endMatch(P.a, 'PINFALL'); }
+  }
+}
+
+// ---------------------------------------------------------------------
+//  Top-rope
+// ---------------------------------------------------------------------
+function startClimb(f, c) {
+  f.setState('climb'); f.corner = c; f.cx0 = f.x; f.cy0 = f.y; f.vx = f.vy = 0;
+  banner('GOING UP TOP!', '#ff9a3b', 56, 50, 430); hype(10);
+}
+function startDive(f, o) {
+  f.setState('dive'); f.sigMove = f.mom >= 100; f.dsx = f.x; f.dsy = f.y; f.dz = f.z;
+  f.dtx = clamp(o.x, xBounds(o.y)[0], xBounds(o.y)[1]); f.dty = o.y; f.faceTo(o); f.hitDone = false;
+}
+function updateDive(f, o) {
+  const p = Math.min(1, f.t / 38);
+  f.x = lerp(f.dsx, f.dtx, p); f.y = lerp(f.dsy, f.dty, p);
+  f.z = lerp(f.dz, 0, p) + 110 * Math.sin(Math.PI * p);
+  f.rot = f.face * Math.PI / 2 * Math.min(1, p * 2.2);
+  if (p >= 1) {
+    f.z = 0; f.rot = 0; clampRing(f);
+    const close = Math.abs(o.x - f.x) < 110 && Math.abs(o.y - f.y) < 60;
+    if (close && (o.state === 'down' || o.state === 'getup' || o.state === 'pinned')) {
+      const sig = f.sigMove;
+      o.state = 'down'; o.invuln = 0;
+      applyHit(f, o, { dmg: sig ? 26 : 16, ground: true, unblockable: true, kb: 0, heavy: true, sig, name: sig ? f.sig + '!' : 'FLYING ELBOW!' });
+      o.setState('down'); o.downLen = 120 + (1 - o.hp / 100) * 60;
+      if (sig) { f.mom = 0; G.slow = 40; G.whiteout = 10; }
+      f.setState('down'); f.downLen = 26; f.lieDir = f.face; SFX.thud(true); shake(18);
+    } else if (close && GRABBABLE.has(o.state)) {
+      applyHit(f, o, { dmg: 13, kd: true, heavy: true, kb: 0, name: 'MISSILE DROPKICK!' });
+      f.setState('down'); f.downLen = 40; f.lieDir = -f.face;
+    } else {
+      f.hp = Math.max(0, f.hp - 7); f.flash = 10; popup(f.x, f.y - 160, 7, '#ff3b5c');
+      banner('CRASH LANDING!', '#ff3b5c', 72, 55, 420); knockDown(f, f.x - f.face, 7, 30); hype(8);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
+//  CPU brain — produces the same intent a human controller would
+// ---------------------------------------------------------------------
+function aiIntent(f, o) {
+  const A = f.ai, I = blankIntent(), m = f.mem, dm = G.mode === 'arcade' || G.mode === 'exhibition' ? DIFF[G.diff].m : 1;
+  const mashChance = A.mash * dm / 60;
+  if (G.state !== 'fight') return I;
+  if (f.state === 'lockup') {
+    if (Math.random() < mashChance) I.mashP = I.grabP = true;
+    if (!m.throwDir) {
+      const r = Math.random();
+      m.throwWhip = r < A.whip; m.throwDir = Math.random() < .45 ? 1 : (Math.random() < .55 ? -1 : 0.01);
+    }
+    I.run = m.throwWhip; I.mx = m.throwDir === .01 ? 0 : m.throwDir * f.face;
+    return I;
+  }
+  if (f.state === 'pinned') { if (Math.random() < mashChance * 1.6) I.mashP = true; return I; }
+  if (f.state === 'down' || f.state === 'dizzy') { if (Math.random() < mashChance * .5) I.mashP = true; return I; }
+  if (f.state === 'perch') { if (!m.perchWait) m.perchWait = rand(6, 30); if (f.t > m.perchWait) { I.strikeP = true; m.perchWait = 0; } return I; }
+  if (f.state === 'strike') { if (f.hitDone && f.t > 8 && Math.random() < A.combo * dm * .2) I.strikeP = true; return I; }
+  const dx = o.x - f.x, dy = o.y - f.y, adx = Math.abs(dx), ady = Math.abs(dy);
+  m.cd = (m.cd || 0) - 1;
+
+  // --- defence: read the opponent's strikes
+  const attacking = (o.state === 'strike' || o.state === 'lariat') && sign(-dx) === o.face && ady < 70;
+  if (attacking && m.seen !== o.atkId && adx < 320) {
+    m.seen = o.atkId; const r = Math.random(), react = Math.min(.92, A.react * dm);
+    let eta = o.state === 'strike' ? (o.act[0] - o.t) : Math.max(1, Math.round((adx - 110) / Math.max(4, Math.abs(o.vx))));
+    if (r < react * .5) { m.counterAt = G.frame + Math.max(1, eta - 3 - Math.floor(rand(0, 4))); m.guardHold = eta + 8; m.blockStart = G.frame; }
+    else if (r < react) { m.counterAt = -1; m.guardHold = eta + 18; }
+  }
+  if (m.guardHold > 0) {
+    m.guardHold--; I.guardH = true; if (G.frame === m.counterAt) I.guardP = true;
+    if (f.state !== 'guard' && f.state !== 'idle' && f.state !== 'walk' && f.state !== 'run') m.guardHold = 0;
+    return I;
+  }
+  const moveTo = (tx, ty, run = false) => {
+    const ex = tx - f.x, ey = ty - f.y;
+    I.mx = Math.abs(ex) > 12 ? clamp(ex / 60, -1, 1) : 0; I.my = Math.abs(ey) > 8 ? clamp(ey / 30, -1, 1) : 0; I.run = run;
+    return Math.abs(ex) < 20 && Math.abs(ey) < 14;
+  };
+  // --- opponent on the mat
+  if (o.state === 'down' || o.state === 'getup') {
+    const left = o.downLen - o.t;
+    if (!m.plan || m.plan !== 'climb') {
+      if (o.state === 'down' && left > 120 && Math.random() < A.aerial * .03 * dm && adx > 180) { m.plan = 'climb'; m.corner = nearestCorner(f); }
+    }
+    if (m.plan === 'climb') {
+      const c = m.corner;
+      if (nearCorner(f) === c) { I.grabP = true; m.plan = null; return I; }
+      moveTo(c.x, c.y, true); return I;
+    }
+    if (o.state === 'getup') { moveTo(o.x - sign(dx) * 140, o.y); return I; }
+    moveTo(o.x - sign(dx || 1) * 70, o.y);
+    if (adx < 130 && ady < 45 && m.cd <= 0) {
+      m.cd = 20;
+      if (o.hp / o.maxHp < A.pinAt * Math.min(1.15, dm) || Math.random() < .04 * dm) I.grabP = true; else I.strikeP = true;
+    }
+    return I;
+  }
+  if (m.plan === 'climb') m.plan = null;
+  // --- punish an incoming rebound/whip
+  if ((o.state === 'rebound' || o.state === 'whipped') && sign(o.vx) === sign(-dx) && ady < 60) {
+    moveTo(f.x, o.y);
+    if (adx < 150) I.strikeP = true;
+    return I;
+  }
+  if (o.state === 'perch' || o.state === 'climb') {
+    if (moveTo(o.x - sign(dx) * 80, o.y) || (adx < 110 && ady < 40)) I.strikeP = true;
+    return I;
+  }
+  // --- neutral game
+  m.planT = (m.planT || 0) - 1;
+  if (!m.plan || m.planT <= 0) {
+    const w = [['strike', A.aggr * dm], ['grab', A.grab * (.6 + .4 * dm)], ['ropes', adx > 300 ? A.ropes * 2 : A.ropes * .5],
+               ['taunt', adx > 350 && f.mom < 100 ? A.taunt : 0], ['wait', .35 / dm]];
+    if (f.mom >= 100) w.push(['grab', A.grab + .3]);
+    let tot = w.reduce((s, x) => s + x[1], 0), r = Math.random() * tot;
+    for (const [k, v] of w) { if ((r -= v) <= 0) { m.plan = k; break; } }
+    m.planT = rand(40, 100) / dm; m.stage = 0;
+  }
+  switch (m.plan) {
+    case 'strike':
+      moveTo(o.x - sign(dx || 1) * 98, o.y);
+      if (adx < 118 && ady < 30 && m.cd <= 0 && sign(dx) === f.face) { I.strikeP = true; m.cd = rand(10, 30) / dm; if (Math.random() < .4) m.plan = null; }
+      break;
+    case 'grab':
+      moveTo(o.x - sign(dx || 1) * 84, o.y);
+      if (adx < 112 && ady < 28 && m.cd <= 0) { I.grabP = true; m.cd = 30; m.plan = null; }
+      break;
+    case 'ropes': {
+      if (f.reboundT > 0) { I.my = clamp(dy / 30, -1, 1); if (adx < 170 && ady < 45 && sign(dx) === f.face) { I.strikeP = true; m.plan = null; } break; }
+      if (m.stage === 0) { m.ropeDir = -sign(dx || 1); m.stage = 1; }
+      I.mx = m.ropeDir; I.my = clamp(dy / 40, -1, 1); I.run = true;
+      if (f.sta < 12) m.plan = null;
+      break;
+    }
+    case 'taunt': I.tauntP = true; m.plan = null; break;
+    default: {
+      // circle & bait
+      const ox = o.x - sign(dx || 1) * 200;
+      moveTo(ox, o.y + Math.sin(G.frame / 40 + f.side) * 50);
+      if (adx < 150 && Math.random() < A.react * .02) m.guardHold = 18;
+    }
+  }
+  return I;
+}
+
+// ---------------------------------------------------------------------
+//  Match flow
+// ---------------------------------------------------------------------
+let curDefs = null;
+function setupMatch(defA, statsA, defB, statsB, aiB) {
+  const sa = makeSheets(defA.base, defA.colors), sb = makeSheets(defB.base, defB.colors);
+  const a = new Fighter(defA, sa, 0, statsA), b = new Fighter(defB, sb, 1, statsB);
+  if (!aiB) b.ai = null;
+  G.f = [a, b]; curDefs = [defA, statsA, defB, statsB, aiB];
+  if (G.mode === 'versus') ctrls = [new Ctrl(KEYMAP_P1, 0, false), new Ctrl(KEYMAP_P2, 1, false)];
+  else ctrls = [new Ctrl(KEYMAP_SOLO, 'any', true), null];
+  G.time = MATCH_TIME; G.lock = G.pin = G.thr = null; G.banners = []; G.parts = []; G.popups = []; G.hype = 25;
+  G.shake = G.hitstop = G.slow = G.whiteout = 0; G.winner = null; G.frame = 0;
+  G.state = 'intro'; G.introT = 0; showScreen(null); updateTouchVis();
+  initAudio(); startMusic();
+}
+function restartMatch() { const [a, sa, b, sb, ai] = curDefs; setupMatch(a, sa, b, sb, ai); }
+function endMatch(w, method) {
+  if (G.state !== 'fight') return;
+  G.state = 'over'; G.overT = 0; G.winner = w; G.method = method;
+  const l = w ? other(w) : null;
+  if (w) { if (!['down', 'pinned'].includes(w.state)) { w.setState('victory'); } }
+  if (l && l.state === 'pinned') l.state = 'down';
+  if (w && w.state === 'pinning') w.setState('victory');
+  SFX.bell(3); SFX.cheer(1); G.slow = 50;
+  banner(method === 'TIME' ? 'TIME UP!' : 'WINNER!', w ? '#ffe14d' : '#fff', 130, 160, 300);
+  if (w) banner(w.name, '#fff', 56, 160, 420);
+  updateTouchVis();
+}
+function timeUp() {
+  const [a, b] = G.f; const ra = a.hp / a.maxHp, rb = b.hp / b.maxHp;
+  G.state = 'fight';
+  endMatch(Math.abs(ra - rb) < .005 ? null : (ra > rb ? a : b), 'TIME');
+}
+
+// ---------------------------------------------------------------------
+//  Main tick
+// ---------------------------------------------------------------------
+function tick() {
+  const pads = getPads();
+  for (const c of ctrls) if (c) c.poll(pads);
+  if (G.state === 'fight' || G.state === 'intro' || G.state === 'over') {
+    const pc = ctrls[0];
+    if (pc && pc.pressed('pause') && G.state === 'fight') { pause(); return; }
+  }
+  if (!['intro', 'fight', 'over'].includes(G.state)) return;
+  updateFX();
+  if (G.hitstop > 0) { G.hitstop--; return; }
+  if (G.slow > 0) { G.slow--; if (G.slow % 2) return; }
+  G.frame++;
+  if (G.state === 'intro') {
+    G.introT++;
+    if (G.introT === 1) { banner(G.f[0].name, '#3bd8ff', 56, 110, 290); banner('VS', '#ffe14d', 80, 110, 400); banner(G.f[1].name, '#ff3b5c', 56, 110, 510); }
+    if (G.introT === 120) { SFX.bell(1); banner('RING THE BELL!', '#ffe14d', 100, 60, 300); }
+    if (G.introT >= 150) { G.state = 'fight'; updateTouchVis(); }
+  }
+  if (G.state === 'over') { G.overT++; if (G.overT === 200) showResults(); }
+  const [a, b] = G.f;
+  const I = G.f.map((f, i) => f.ai ? aiIntent(f, other(f)) : (ctrls[i] ? ctrls[i].intent() : blankIntent()));
+  if (G.state === 'over') { I[0] = blankIntent(); I[1] = blankIntent(); }
+  updateFighter(a, I[0], b); updateFighter(b, I[1], a);
+  if (G.lock) updateLock(I);
+  if (G.thr) updateThrow();
+  if (G.pin) updatePin(I);
+  // personal space
+  const pushable = s => ['idle', 'walk', 'run', 'guard', 'hurt', 'dizzy', 'taunt', 'strike', 'grab', 'grabmiss', 'victory'].includes(s);
+  if (pushable(a.state) && pushable(b.state)) {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    if (Math.abs(dx) < 74 && Math.abs(dy) < 26) { const push = (74 - Math.abs(dx)) / 2, s = sign(dx || (a.side ? -1 : 1)); a.x -= s * push; b.x += s * push; clampRing(a); clampRing(b); }
+  }
+  if (G.state === 'fight') {
+    if (!G.lock && !G.pin && !G.thr) G.time -= 1 / 60;
+    if (G.time <= 0) { G.time = 0; timeUp(); }
+    if (G.time <= 10 && Math.abs(G.time * 60 % 60) < 1) SFX.count(1);
+  }
+  G.hype = Math.max(5, G.hype - .03);
+  if (crowdGain && G.frame % 30 === 0 && actx) { const g = crowdGain.gain; if (g.value < .3) g.setTargetAtTime(.03 + G.hype / 1000, actx.currentTime, .5); }
+}
+function updateFX() {
+  for (const p of G.parts) { p.t++; p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= .96; }
+  G.parts = G.parts.filter(p => p.t < p.life);
+  for (const p of G.popups) p.t++; G.popups = G.popups.filter(p => p.t < 50);
+  for (const b of G.banners) b.t++; G.banners = G.banners.filter(b => b.t < b.life);
+  G.shake *= .85; if (G.shake < .3) G.shake = 0;
+  G.ropeWob *= .93; if (G.whiteout > 0) G.whiteout--;
+  if (Math.random() < G.hype / 260) G.flashes.push({ x: rand(0, W), y: rand(10, 220), t: 0 });
+  for (const fl of G.flashes) fl.t++; G.flashes = G.flashes.filter(f => f.t < 6);
+}
+
+// ---------------------------------------------------------------------
+//  Rendering
+// ---------------------------------------------------------------------
+function drawFrame(sheet, cols, col, row, w = 1, h = 1) {
+  const fw = sheet.width / cols, fh = sheet.height / 4;
+  ctx.drawImage(sheet, col * fw, row * fh, fw, fh, -SPR / 2 * w, -FOOT * h, SPR * w, SPR * h);
+}
+const PUNCH_SEQ = { jab: [1, 2, 3, 4, 4, 4, 3, 2, 0], hay: [1, 1, 2, 2, 5, 5, 4, 4, 4, 3, 2, 0] };
+function drawFighter(f) {
+  const S = f.sheets; if (!S.idle) return;
+  const rowF = f.face < 0 ? 1 : 3;
+  let sheet = S.idle, cols = 9, col = 0, row = rowF, rot = f.rot, ox = 0, oy = 0, sx = 1, sy = 1, lying = false;
+  switch (f.state) {
+    case 'walk': row = f.dirRow ?? rowF; col = Math.floor(f.animT / 5) % 9; break;
+    case 'run': sheet = S.run; cols = 8; col = Math.floor(f.animT / 3) % 8; break;
+    case 'idle': case 'guard': sy = 1 + Math.sin(f.animT / 14) * .012; break;
+    case 'strike': { sheet = S.punch; cols = 6; const seq = f.combo === 2 ? PUNCH_SEQ.hay : PUNCH_SEQ.jab;
+      col = seq[Math.min(seq.length - 1, Math.floor(f.t / (f.dur / seq.length)))]; break; }
+    case 'lariat': sheet = S.punch; cols = 6; col = f.t < 3 ? 2 : (f.t < 22 ? 4 : 3); break;
+    case 'stomp': row = rowF; col = f.t < 10 ? 3 : 0; oy = f.t < 10 ? -Math.sin(f.t / 10 * Math.PI) * 18 : 0; break;
+    case 'grab': case 'grabmiss': sheet = S.punch; cols = 6; col = f.state === 'grab' ? (f.t < 4 ? 1 : 3) : 3; break;
+    case 'lockup': sheet = S.punch; cols = 6; col = 3; ox = Math.sin(G.frame * 1.3 + f.side) * 3; break;
+    case 'throw': sheet = S.punch; cols = 6; row = 2; col = 5; break;
+    case 'hurt': case 'dizzy': case 'rebound': case 'whipped':
+      if (f.state === 'whipped') { sheet = S.run; cols = 8; col = Math.floor(f.animT / 3) % 8; }
+      ox = f.state === 'hurt' && f.t < 8 ? Math.sin(f.t * 3) * 5 : 0; break;
+    case 'taunt': case 'victory': sheet = S.punch; cols = 6; row = 2; col = Math.floor(f.animT / 12) % 2 ? 5 : 4;
+      oy = -Math.abs(Math.sin(f.animT / 8)) * 14; break;
+    case 'thrown': row = 2; break;
+    case 'down': case 'pinned': lying = true; row = 2; break;
+    case 'getup': lying = f.t < 10; row = 2; if (!lying) sy = .7 + (f.t - 10) / 12 * .3; break;
+    case 'pinning': row = 2; sy = .62; oy = -18; break;
+    case 'climb': row = 0; col = Math.floor(f.animT / 6) % 9; break;
+    case 'perch': sheet = S.punch; cols = 6; row = 2; col = Math.floor(f.animT / 15) % 2 ? 5 : 4; break;
+    case 'dive': row = 2; break;
+  }
+  // ground shadow when airborne
+  if (f.z > 4) {
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(f.x, f.y - 6, 50 * (1 - f.z / 600), 14, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(Math.round(f.x + ox), Math.round(f.y - f.z + oy));
+  if (lying) {
+    ctx.translate(0, -26); ctx.rotate((f.lieDir || 1) * Math.PI / 2); ctx.translate(0, FOOT / 2);
+  } else if (rot) { ctx.translate(0, -FOOT / 2); ctx.rotate(rot); ctx.translate(0, FOOT / 2); }
+  if (f.state === 'guard') { ctx.globalAlpha = 1; }
+  if (f.invuln > 0 && Math.floor(f.invuln / 3) % 2) ctx.globalAlpha = .55;
+  drawFrame(sheet, cols, col, row, sx, sy);
+  if (f.flash > 0) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .55 * (f.flash / 10);
+    drawFrame(sheet, cols, col, row, sx, sy); drawFrame(sheet, cols, col, row, sx, sy);
+  }
+  ctx.restore();
+  // overlays
+  if (f.state === 'guard') {
+    ctx.save(); ctx.strokeStyle = G.frame - f.guardAt <= 10 ? '#ffffff' : 'rgba(59,216,255,.85)'; ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.arc(f.x + f.face * 10, f.y - 100, 78, f.face > 0 ? -1 : Math.PI - 1, f.face > 0 ? 1 : Math.PI + 1); ctx.stroke(); ctx.restore();
+  }
+  if (f.state === 'dizzy') {
+    for (let i = 0; i < 3; i++) { const a = G.frame / 8 + i * 2.1;
+      drawStar(f.x + Math.cos(a) * 46, f.y - 190 + Math.sin(a) * 12, 10, '#ffe14d'); }
+  }
+  if (f.mom >= 100 && !lying && G.frame % 20 < 12) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(f.x, f.y - 90, 10, f.x, f.y - 90, 120);
+    g.addColorStop(0, 'rgba(255,90,40,.35)'); g.addColorStop(1, 'rgba(255,90,40,0)'); ctx.fillStyle = g; ctx.fillRect(f.x - 120, f.y - 210, 240, 240); ctx.restore();
+  }
+  // P1 / P2 marker
+  if (!lying && f.state !== 'thrown' && f.state !== 'dive') {
+    const tag = G.mode === 'versus' ? 'P' + (f.side + 1) : (f.ai ? 'CPU' : 'P1');
+    ctx.font = '16px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#000'; ctx.fillText(tag, f.x + 2, f.y - f.z - FOOT - 10);
+    ctx.fillStyle = f.side === 0 ? '#3bd8ff' : '#ff3b5c'; ctx.fillText(tag, f.x, f.y - f.z - FOOT - 12);
+  }
+}
+function drawStar(x, y, r, c) {
+  ctx.fillStyle = c; ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * .45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+  ctx.fill();
+}
+function drawFrontRopes() {
+  const wob = G.ropeWob, side = G.ropeWobSide;
+  for (const ry of [682, 730, 778]) {
+    ctx.beginPath();
+    for (let x = 318; x <= 1592; x += 16) {
+      let off = 0;
+      if (side === 'B' && wob > .5) off = Math.sin((x - 318) / 1274 * Math.PI) * Math.sin(G.frame * .7) * wob;
+      x === 318 ? ctx.moveTo(x, ry + off) : ctx.lineTo(x, ry + off);
+    }
+    ctx.strokeStyle = '#b00000'; ctx.lineWidth = 12; ctx.stroke();
+    ctx.strokeStyle = '#e8120f'; ctx.lineWidth = 7; ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,140,120,.8)'; ctx.lineWidth = 2; ctx.save(); ctx.translate(0, -3); ctx.stroke(); ctx.restore();
+  }
+}
+function drawSideRopeWobble() {
+  if (G.ropeWob < 1 || (G.ropeWobSide !== 'L' && G.ropeWobSide !== 'R')) return;
+  const L = G.ropeWobSide === 'L';
+  const top = L ? { x: 412, y: 320 } : { x: 1500, y: 320 }, bot = L ? { x: 300, y: 690 } : { x: 1610, y: 690 };
+  ctx.save(); ctx.strokeStyle = 'rgba(255,60,50,.9)'; ctx.lineWidth = 5;
+  for (let k = 0; k < 3; k++) {
+    ctx.beginPath();
+    for (let i = 0; i <= 20; i++) { const p = i / 20; const off = Math.sin(p * Math.PI) * Math.sin(G.frame * .8) * G.ropeWob * (L ? -1 : 1);
+      const x = lerp(top.x, bot.x, p) + off, y = lerp(top.y, bot.y, p) + k * 46; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function bar(x, y, w, h, v, max, col, ghost, flip, glow) {
+  ctx.fillStyle = 'rgba(0,0,0,.65)'; ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+  ctx.fillStyle = '#2a0b12'; ctx.fillRect(x, y, w, h);
+  const fx = (val) => flip ? x + w - w * clamp(val / max, 0, 1) : x;
+  if (ghost != null) { ctx.fillStyle = '#fff'; ctx.fillRect(fx(ghost), y, w * clamp(ghost / max, 0, 1), h); }
+  ctx.fillStyle = col; ctx.fillRect(fx(v), y, w * clamp(v / max, 0, 1), h);
+  ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(fx(v), y, w * clamp(v / max, 0, 1), h * .3);
+  if (glow) { ctx.strokeStyle = G.frame % 16 < 8 ? '#fff' : '#ff3b5c'; ctx.lineWidth = 3; ctx.strokeRect(x - 2, y - 2, w + 4, h + 4); }
+}
+function hpColor(r) { return r > .5 ? '#3bff6e' : r > .25 ? '#ffe14d' : '#ff3b5c'; }
+function text(t, x, y, size, col, align = 'center', stroke = 6) {
+  ctx.font = `${size}px "Press Start 2P", monospace`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.lineWidth = stroke; ctx.strokeStyle = '#000'; ctx.lineJoin = 'round'; ctx.strokeText(t, x, y); ctx.fillStyle = col; ctx.fillText(t, x, y);
+}
+function drawHUD() {
+  const [a, b] = G.f, BW = 640;
+  for (const f of [a, b]) {
+    const L = f.side === 0, x = L ? 40 : W - 40 - BW;
+    text(f.name, L ? x : x + BW, 40, 24, L ? '#3bd8ff' : '#ff3b5c', L ? 'left' : 'right');
+    bar(x, 64, BW, 34, f.hp, f.maxHp, hpColor(f.hp / f.maxHp), f.ghost, !L);
+    bar(L ? x : x + BW - 420, 110, 420, 12, f.sta, f.maxSta, '#3bd8ff', null, !L);
+    bar(L ? x : x + BW - 420, 132, 420, 16, f.mom, 100, f.mom >= 100 ? '#ff6a2a' : '#ff9a3b', null, !L, f.mom >= 100);
+    text(f.mom >= 100 ? 'SIGNATURE READY!' : 'MOMENTUM', L ? x + 432 : x + BW - 432, 140, 12, f.mom >= 100 ? '#ffe14d' : '#ccc', L ? 'left' : 'right', 4);
+    text('STAMINA', L ? x + 432 : x + BW - 432, 116, 12, '#9ad', L ? 'left' : 'right', 4);
+  }
+  // timer
+  ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(W / 2 - 110, 22, 220, 96);
+  ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 4; ctx.strokeRect(W / 2 - 110, 22, 220, 96);
+  const t = Math.ceil(G.time), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0');
+  text(`${mm}:${ss}`, W / 2, 60, 40, G.time <= 10 ? '#ff3b5c' : '#fff');
+  const lbl = G.mode === 'arcade' ? `MATCH ${G.opponentIdx + 1}/${ROSTER.length}` : G.mode === 'versus' ? '2P VERSUS' : 'EXHIBITION';
+  text(lbl, W / 2, 100, 12, '#ffe14d', 'center', 4);
+  // hype meter
+  const hx = W / 2 - 200, hy = 1030;
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(hx - 6, hy - 6, 412, 26);
+  const gr = ctx.createLinearGradient(hx, 0, hx + 400, 0); gr.addColorStop(0, '#3bd8ff'); gr.addColorStop(.6, '#ffe14d'); gr.addColorStop(1, '#ff3b5c');
+  ctx.fillStyle = gr; ctx.fillRect(hx, hy, 400 * G.hype / 100, 14);
+  text('CROWD', hx - 20, hy + 7, 12, '#fff', 'right', 4);
+  // tie-up meter
+  if (G.lock) {
+    const L = G.lock, mx = (L.a.x + L.b.x) / 2, my = L.a.y - 240, w = 300;
+    ctx.fillStyle = 'rgba(0,0,0,.75)'; ctx.fillRect(mx - w / 2 - 6, my - 6, w + 12, 30);
+    const lcol = L.a.side === 0 ? '#3bd8ff' : '#ff3b5c', rcol = L.a.side === 0 ? '#ff3b5c' : '#3bd8ff';
+    const leftIsA = L.a.x < L.b.x, pos = (leftIsA ? L.m : -L.m) / 100;
+    ctx.fillStyle = leftIsA ? lcol : rcol; ctx.fillRect(mx - w / 2, my, w / 2 + pos * w / 2, 18);
+    ctx.fillStyle = leftIsA ? rcol : lcol; ctx.fillRect(mx + pos * w / 2, my, w / 2 - pos * w / 2, 18);
+    ctx.fillStyle = '#fff'; ctx.fillRect(mx + pos * w / 2 - 3, my - 6, 6, 30);
+    const humanIn = G.f.some(f => !f.ai);
+    if (humanIn && G.frame % 20 < 12) text('MASH!', mx, my - 30, 24, '#ffe14d');
+  }
+  if (G.pin) {
+    const P = G.pin; const human = !P.v.ai;
+    if (human) {
+      const w = 260, x = P.v.x - w / 2, y = P.v.y - 250;
+      bar(x, y, w, 18, Math.min(P.kick, P.need), Math.min(P.need, 999), '#3bd8ff');
+      if (G.frame % 16 < 10) text('MASH TO KICK OUT!', P.v.x, y - 28, 18, '#3bd8ff');
+    }
+  }
+  if (G.state === 'fight' && !usingTouch && G.mode !== 'versus' && G.frame < 60 * 12) {
+    text('J STRIKE · K GRAPPLE · L GUARD · I HYPE · SHIFT RUN · ESC PAUSE', W / 2, 1000, 14, 'rgba(255,255,255,.85)', 'center', 4);
+  }
+}
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  if (!['intro', 'fight', 'over', 'paused', 'results'].includes(G.state)) {
+    if (IMG.ring) { ctx.globalAlpha = .5; ctx.drawImage(IMG.ring, 0, 0, W, H); ctx.globalAlpha = 1; }
+    return;
+  }
+  const sx = G.shake ? rand(-G.shake, G.shake) : 0, sy = G.shake ? rand(-G.shake, G.shake) : 0;
+  ctx.setTransform(1, 0, 0, 1, sx, sy);
+  if (IMG.ring) ctx.drawImage(IMG.ring, 0, 0, W, H);
+  // crowd camera flashes
+  for (const fl of G.flashes) { ctx.fillStyle = `rgba(255,255,255,${1 - fl.t / 6})`; ctx.beginPath(); ctx.arc(fl.x, fl.y, 10 - fl.t, 0, Math.PI * 2); ctx.fill(); }
+  drawSideRopeWobble();
+  // draw order by depth; lying/pinned first so the pinner sits on top
+  const list = [...G.f].sort((p, q) => (p.y + (p.state === 'pinning' ? 1 : 0) + (p.state === 'thrown' || p.state === 'dive' ? 2 : 0)) - (q.y + (q.state === 'pinning' ? 1 : 0) + (q.state === 'thrown' || q.state === 'dive' ? 2 : 0)));
+  for (const f of list) drawFighter(f);
+  drawFrontRopes();
+  // particles
+  for (const p of G.parts) {
+    ctx.globalAlpha = p.fade ? (1 - p.t / p.life) * .7 : 1 - p.t / p.life; ctx.fillStyle = p.color;
+    const s = p.size * (p.fade ? (1 + p.t / p.life) : (1 - p.t / p.life * .5)); ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+  for (const p of G.popups) { ctx.globalAlpha = 1 - p.t / 50; text(String(p.text), p.x, p.y - p.t * 1.4, 28, p.color); }
+  ctx.globalAlpha = 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  drawHUD();
+  for (const b of G.banners) {
+    const k = b.t < 8 ? b.t / 8 : 1, out = b.t > b.life - 10 ? (b.life - b.t) / 10 : 1;
+    ctx.save(); ctx.globalAlpha = out; ctx.translate(W / 2, b.y); ctx.scale(lerp(2.2, 1, k), lerp(2.2, 1, k));
+    ctx.font = `${b.size}px "Press Start 2P", monospace`; const tw = ctx.measureText(b.text).width;
+    const fitK = Math.min(1, (W - 160) / Math.max(1, tw)); ctx.scale(fitK, fitK);
+    ctx.transform(1, 0, -.18, 1, 0, 0); text(b.text, 0, 0, b.size, b.color, 'center', Math.max(6, b.size / 8)); ctx.restore();
+  }
+  if (G.whiteout > 0) { ctx.fillStyle = `rgba(255,255,255,${G.whiteout / 14})`; ctx.fillRect(0, 0, W, H); }
+  if (G.slow > 0 && !reduceMotion) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(0, 0, W, 60); ctx.fillRect(0, H - 60, W, 60); }
+}
+
+// ---------------------------------------------------------------------
+//  Loop (fixed 60 Hz simulation)
+// ---------------------------------------------------------------------
+let last = performance.now(), acc = 0;
+function loop(now) {
+  acc += Math.min(100, now - last); last = now;
+  while (acc >= 1000 / 60) { tick(); menuTick(); keysHit.clear(); acc -= 1000 / 60; }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ---------------------------------------------------------------------
+//  Screens / menus
+// ---------------------------------------------------------------------
+let curScreen = 'scr-loading', selIdx = 0;
+let menuLock = 0;
+function showScreen(id) {
+  menuLock = 24;
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  curScreen = id; selIdx = 0; highlight();
+}
+function selectables() { if (!curScreen) return []; return [...document.querySelectorAll(`#${curScreen} .btn, #${curScreen} .card:not(.locked)`)]; }
+function highlight() { const s = selectables(); s.forEach((e, i) => e.classList.toggle('sel', i === selIdx)); }
+function menuTick() {
+  if (!curScreen || curScreen === 'scr-loading') return;
+  menuCtrl.poll(getPads());
+  if (menuLock > 0) { menuLock--; return; }
+  const s = selectables(); if (!s.length) return;
+  const prev = menuCtrl.pressed('up') || menuCtrl.pressed('left'), next = menuCtrl.pressed('down') || menuCtrl.pressed('right');
+  if (prev) { selIdx = (selIdx - 1 + s.length) % s.length; highlight(); SFX.menu(); }
+  if (next) { selIdx = (selIdx + 1) % s.length; highlight(); SFX.menu(); }
+  if (menuCtrl.pressed('strike')) { initAudio(); s[selIdx].click(); }
+  if (menuCtrl.pressed('guard')) {
+    if (curScreen === 'scr-pause') resume();
+    else if (['scr-help', 'scr-select', 'scr-ladder'].includes(curScreen)) act('menu');
+  }
+}
+document.getElementById('ui').addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return; initAudio(); act(el.dataset.act, el);
+});
+document.getElementById('ui').addEventListener('mousemove', e => {
+  const el = e.target.closest('.btn, .card'); if (!el) return; const i = selectables().indexOf(el); if (i >= 0 && i !== selIdx) { selIdx = i; highlight(); }
+});
+document.getElementById('mute').addEventListener('click', () => { initAudio(); setSound(!save.sound); });
+
+let helpReturn = 'scr-menu';
+function act(a, el) {
+  SFX.ok();
+  switch (a) {
+    case 'title': startMusic(); toMenu(); break;
+    case 'menu': if (curScreen === 'scr-help' && helpReturn === 'scr-pause') { showScreen('scr-pause'); break; } toMenu(); break;
+    case 'arcade': G.mode = 'arcade'; if (!save.career) newCareer(); showLadder(); break;
+    case 'newrun': newCareer(); showLadder(); break;
+    case 'fight': startArcadeMatch(); break;
+    case 'exhibition': G.mode = 'exhibition'; showSelect(); break;
+    case 'versus': G.mode = 'versus'; G.opponentIdx = 0; setupMatch(PLAYER_DEF, PLAYER_DEF.stats, RIVAL_DEF, RIVAL_DEF.stats, false); break;
+    case 'help': helpReturn = 'scr-menu'; showScreen('scr-help'); break;
+    case 'help2': helpReturn = 'scr-pause'; showScreen('scr-help'); break;
+    case 'difficulty': G.diff = (G.diff + 1) % DIFF.length; save.difficulty = G.diff; persist(); refreshMenu(); break;
+    case 'pickopp': { const i = +el.dataset.i; G.opponentIdx = i; const d = ROSTER[i]; setupMatch(PLAYER_DEF, PLAYER_DEF.stats, d, d.stats, true); break; }
+    case 'resume': resume(); break;
+    case 'restart': restartMatch(); break;
+    case 'quit': G.state = 'menu'; toMenu(); break;
+    case 'continue': restartMatch(); break;
+    case 'next': if (save.career.pts > 0) showStats(); else showLadder(); break;
+    case 'statsDone': showLadder(); break;
+    case 'stat': { const k = el.dataset.k; const c = save.career; if (c.pts > 0 && c.stats[k] < 10) { c.stats[k]++; c.pts--; persist(); renderStats(); } break; }
+  }
+}
+function toMenu() { G.state = 'menu'; refreshMenu(); showScreen('scr-menu'); updateTouchVis(); }
+function refreshMenu() {
+  document.getElementById('diffBtn').textContent = 'CPU: ' + DIFF[G.diff].name;
+  document.getElementById('menuRecord').textContent = `RECORD ${save.wins}W-${save.losses}L · HWA TITLES ${save.titles}` + (save.bestTime ? ` · FASTEST TITLE RUN ${fmtTime(save.bestTime)}` : '');
+}
+function fmtTime(s) { s = Math.round(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function pause() { if (G.state !== 'fight') return; G.state = 'paused'; showScreen('scr-pause'); updateTouchVis(); if (music) music.pause(); }
+function resume() { G.state = 'fight'; showScreen(null); updateTouchVis(); startMusic(); for (const c of ctrls) if (c) c.poll(getPads()); }
+function newCareer() { save.career = { stage: 0, stats: Object.assign({}, PLAYER_DEF.stats), pts: 0, time: 0, continues: 0 }; persist(); }
+
+function portrait(def, size = 96) {
+  const c = document.createElement('canvas'); c.width = c.height = size; const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const S = makeSheets(def.base, def.colors); if (S.idle) x.drawImage(S.idle, 0, 128, 64, 64, 0, 0, size, size);
+  return c;
+}
+function card(def, opts = {}) {
+  const d = document.createElement('div'); d.className = 'card' + (opts.beaten ? ' beaten' : '') + (opts.locked ? ' locked' : '');
+  if (opts.act) { d.dataset.act = opts.act; d.dataset.i = opts.i; }
+  d.appendChild(portrait(def));
+  const s = def.stats;
+  d.insertAdjacentHTML('beforeend', `<div class="nm">${def.name}</div><div class="ttl">${opts.label || def.title}</div>
+    <div class="bars">${['power', 'speed', 'stamina', 'charisma'].map(k => `<span>${k.slice(0, 3).toUpperCase()}</span><i><b style="width:${s[k] * 10}%"></b></i>`).join('')}</div>`);
+  return d;
+}
+function showLadder() {
+  const c = save.career, box = document.getElementById('ladderCards'); box.innerHTML = '';
+  box.appendChild(card({ ...PLAYER_DEF, stats: c.stats }, { label: 'YOU' }));
+  ROSTER.forEach((d, i) => {
+    const el = card(d, { beaten: i < c.stage, locked: true, label: i < c.stage ? 'DEFEATED' : (i === c.stage ? '▶ NEXT' : d.title) });
+    if (i === c.stage) el.style.borderColor = '#ffe14d';
+    box.appendChild(el);
+  });
+  const nxt = ROSTER[Math.min(c.stage, ROSTER.length - 1)];
+  document.getElementById('ladderTip').textContent = c.stage >= ROSTER.length ? 'You are the champion! Start a new career to defend your legacy.' : `${nxt.name} — ${nxt.bio}  (Signature: ${nxt.sig})`;
+  document.querySelector('#scr-ladder [data-act="fight"]').style.display = c.stage >= ROSTER.length ? 'none' : '';
+  showScreen('scr-ladder');
+}
+function startArcadeMatch() {
+  const c = save.career; G.opponentIdx = c.stage; const d = ROSTER[c.stage];
+  setupMatch(PLAYER_DEF, c.stats, d, d.stats, true);
+}
+function showSelect() {
+  const box = document.getElementById('selectCards'); box.innerHTML = '';
+  ROSTER.forEach((d, i) => box.appendChild(card(d, { act: 'pickopp', i })));
+  showScreen('scr-select');
+}
+function showStats() { renderStats(); showScreen('scr-stats'); selIdx = 0; highlight(); }
+function renderStats() {
+  const c = save.career, box = document.getElementById('statRows'); box.innerHTML = '';
+  document.getElementById('ptsLeft').textContent = c.pts;
+  for (const k of ['power', 'speed', 'stamina', 'charisma']) {
+    const r = document.createElement('div'); r.className = 'stat-row';
+    r.innerHTML = `<span class="lbl">${k.toUpperCase()}</span><span class="pips">${Array.from({ length: 10 }, (_, i) => `<u class="${i < c.stats[k] ? 'on' : ''}"></u>`).join('')}</span>`;
+    const b = document.createElement('button'); b.className = 'btn small'; b.textContent = '+'; b.dataset.act = 'stat'; b.dataset.k = k;
+    if (c.pts <= 0 || c.stats[k] >= 10) b.disabled = true;
+    r.appendChild(b); box.appendChild(r);
+  }
+  const keep = selIdx; highlight(); selIdx = Math.min(keep, selectables().length - 1); highlight();
+}
+function showResults() {
+  const [p, cpu] = G.f, w = G.winner, btns = document.getElementById('resBtns');
+  const title = document.getElementById('resTitle'), line = document.getElementById('resLine'), sub = document.getElementById('resSub');
+  const elapsed = MATCH_TIME - G.time;
+  const how = G.method === 'PINFALL' ? 'by PINFALL' : 'by DECISION';
+  btns.innerHTML = '';
+  const add = (label, a) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = label; b.dataset.act = a; btns.appendChild(b); };
+  sub.textContent = `Damage dealt — ${p.name}: ${Math.round(p.stats_dealt)} · ${cpu.name}: ${Math.round(cpu.stats_dealt)}`;
+  if (G.mode === 'versus') {
+    title.textContent = w ? `P${w.side + 1} WINS!` : 'DRAW!'; line.textContent = w ? `${w.name} ${how} in ${fmtTime(elapsed)}` : 'Time ran out with nothing to separate them.';
+    add('REMATCH', 'restart'); add('MENU', 'quit');
+  } else if (w === p) {
+    save.wins++;
+    title.textContent = 'VICTORY!'; line.textContent = `${how} over ${cpu.name} in ${fmtTime(elapsed)}`;
+    if (G.mode === 'arcade') {
+      const c = save.career; c.time += elapsed; c.stage++; c.pts += 2;
+      if (c.stage >= ROSTER.length) {
+        save.titles++; if (!save.bestTime || c.time < save.bestTime) save.bestTime = c.time;
+        title.textContent = 'NEW HWA CHAMPION!'; line.textContent = `You took the belt from ${cpu.name}! Total ring time ${fmtTime(c.time)}.`;
+        add('LADDER', 'next'); add('MENU', 'quit');
+      } else { add('TRAIN & CONTINUE', 'next'); add('MENU', 'quit'); }
+    } else { add('REMATCH', 'restart'); add('MENU', 'quit'); }
+  } else {
+    save.losses++;
+    title.textContent = w ? 'DEFEAT' : 'DRAW'; line.textContent = w ? `${cpu.name} wins ${how}.` : 'Time ran out — the judges call it even.';
+    if (G.mode === 'arcade') { save.career.continues++; add('CONTINUE', 'continue'); add('MENU', 'quit'); }
+    else { add('REMATCH', 'restart'); add('MENU', 'quit'); }
+  }
+  persist(); G.state = 'results'; updateTouchVis(); showScreen('scr-result');
+}
+
+// ---------------------------------------------------------------------
+//  Boot
+// ---------------------------------------------------------------------
+(async function boot() {
+  const entries = Object.entries(IMG_SRC); let n = 0;
+  await Promise.all(entries.map(([k, s]) => loadImg(k, s).then(() => { n++; document.getElementById('loadPct').textContent = Math.round(n / entries.length * 100) + '%'; })));
+  try { music = new Audio('game_music.mp4'); music.preload = 'auto'; sPunch = new Audio('punch.mp3'); sMiss = new Audio('miss.mp3'); } catch (e) {}
+  setSound(save.sound);
+  if (G.diff == null || !DIFF[G.diff]) G.diff = 1;
+  G.state = 'title'; showScreen('scr-title');
+  requestAnimationFrame(loop);
+})();
+// handy for debugging from the console
+window.RR = { G, ROSTER, save, tick, aiIntent, setupMatch, PLAYER_DEF };
+</script>
 </body>
 </html>
