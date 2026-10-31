@@ -79,6 +79,11 @@
               border-radius: calc(var(--u)*.6); font-size: calc(var(--u)*1.2); background: rgba(0,0,0,.5); }
   #mute { position: fixed; top: 12px; right: 12px; width: 48px; height: 48px; font-size: 22px; border-radius: 12px; z-index: 50;
           background: rgba(255,255,255,.9); border: 3px solid #000; cursor: pointer; }
+  #rotate { position: fixed; inset: 0; z-index: 60; display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 24px; background: #000; color: #ffe14d; font-size: 16px; text-align: center; padding: 16px; line-height: 1.8; }
+  #rotate .ph { font-size: 64px; animation: tilt 1.6s ease-in-out infinite; }
+  @keyframes tilt { 50% { transform: rotate(90deg); } }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
   @media (prefers-reduced-motion: reduce) { #scr-title .btn { animation: none; } }
 </style>
 </head>
@@ -180,6 +185,7 @@
     <button class="tb" id="tb-pause" data-k="pause">II</button>
   </div>
 </div>
+<div id="rotate"><div class="ph">📱</div><div>TURN YOUR PHONE SIDEWAYS<br>TO RUMBLE!</div></div>
 <button id="mute" title="Toggle sound (M)">🔊</button>
 
 <script>
